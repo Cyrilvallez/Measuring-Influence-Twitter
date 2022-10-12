@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
+# Custom
+Twitter/.twitter_credentials.yaml
+.DS_Store
+
