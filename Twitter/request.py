@@ -7,69 +7,102 @@ Created on Wed Oct 12 15:51:35 2022
 """
 
 from twarc import Twarc2, expansions
-import datetime
+from datetime import datetime, timezone
 import json
-import yaml
+import argparse
+import utils
 
 
-def get_credentials(path=".twitter_credentials.yaml"):
+def make_query(filename, query, start_time, end_time, max_per_page, max_pages):
     """
-    Retrieves the twitter credential from a yaml file.
+    Make a "search all" query to the twitter API v2 and saves the results to
+    the given `filename`.
 
     Parameters
     ----------
-    path : str, optional
-        The path to the yaml file containing the credentials. The default
-        is ".twitter_credential.yaml".
+    filename : str
+        The path and filename to save the results.
+    query : str
+        The query for the twitter API.
+    start_time : datetime.datetime
+        The start date for looking up tweets.
+    end_time : datetime.datetime
+        The end date for looking up tweets.
+    max_per_page : int
+        The maximum number of tweets to get per page of results.
+    max_pages : int
+        The maximum number of pages to query (the total number of tweets retrieved
+        is max_per_page*max_pages).
 
     Returns
     -------
-    credentials : dictionary
-        Dictionary containing the credentials contained in the yaml file.
+    None.
 
     """
-    with open(path, "r") as stream:
-        credentials = yaml.safe_load(stream)
     
-    return credentials
-    
-
-# Replace your bearer token below
-client = Twarc2(bearer_token=get_credentials()['Bearer token'])
-
-# Specify the start time in UTC for the time period you want replies from
-start_time = datetime.datetime(2021, 1, 1, 0, 0, 0, 0, datetime.timezone.utc)
-
-# Specify the end time in UTC for the time period you want Tweets from
-end_time = datetime.datetime(2021, 5, 30, 0, 0, 0, 0, datetime.timezone.utc)
- 
-# This is where we specify our query as discussed in module 5
-query = "from:twitterdev"
-
-# Name and path of the file where you want the Tweets written to
-file_name = 'tweets.txt'
-
-
-def main():
+    # Replace your bearer token below
+    client = Twarc2(bearer_token=utils.get_credentials()['Bearer token'])
 
     # The search_all method call the full-archive search endpoint to get Tweets
     # based on the query, start and end times
     search_results = client.search_all(query=query, start_time=start_time,
-                                       end_time=end_time, max_results=100)
+                                       end_time=end_time, max_results=max_per_page)
 
     # Twarc returns all Tweets for the criteria set above, so we page through
     # the results
-    for page in search_results:
+    for i, page in enumerate(search_results):
+
+        if i > (max_pages - 1):
+            break
+        
         # The Twitter API v2 returns the Tweet information and the user, media etc.  separately
         # so we use expansions.flatten to get all the information in a single JSON
         result = expansions.flatten(page)
         # We will open the file and append one JSON object per new line
-        with open(file_name, 'a+') as filehandle:
+        
+        with open(filename, 'a+') as filehandle:
             for tweet in result:
-                filehandle.write('%s\n' % json.dumps(tweet))
-
+                # write the json file with new line after each new dump
+                filehandle.write(f'{json.dumps(tweet)}\n')
+             
 
 if __name__ == "__main__":
-    main()
+    
+    parser = argparse.ArgumentParser(description='Twitter API call')
+    parser.add_argument('filename', type=str,
+                        help='A name for the output file.')
+    parser.add_argument('query', type=str,
+                        help='Path to the filename containing the query.')
+    parser.add_argument('start_time', type=datetime.fromisoformat,
+                        help='The start date for the tweets (YYYY-MM-DDTHH:MM:SS) in UTC timezone.')
+    parser.add_argument('end_time', type=datetime.fromisoformat,
+                        help='The end date for the tweets (YYYY-MM-DDTHH:MM:SS) in UTC timezone.')
+    parser.add_argument('--max_per_page', type=int, default=50,
+                        help='Max number of results per API call.')
+    parser.add_argument('--max_pages', type=int, default=-1,
+                        help='Max number of API calls. Give `-1` for no limit.')
+    args = parser.parse_args()
+    
+    filename = args.filename
+    query = utils.load_query(args.query)
+    start_time = args.start_time.replace(tzinfo=timezone.utc)
+    end_time = args.end_time.replace(tzinfo=timezone.utc)
+    max_per_page = args.max_per_page
+    # If max_pages is -1 we set it to inf so that there are no limits
+    max_pages = args.max_pages if args.max_pages != -1 else float('inf')
+    print(query)
+    
+    filename = utils.format_filename(filename)
+    
+    # We log the arguments at the beginning of the file
+    log = {'query_file': args.query, 'query': query, 'start_time': args.start_time.isoformat(sep=' '), \
+           'end_date': args.end_time.isoformat(sep=' '), 'max_per_page': max_per_page, \
+           'max_pages': max_pages}
+        
+    with open(filename, 'w') as filehandle:
+        filehandle.write(f'{json.dumps(log)}\n\n')
+    
+    make_query(filename, query, start_time, end_time, max_per_page, max_pages)
+    
     
     

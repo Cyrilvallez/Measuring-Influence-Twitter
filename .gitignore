@@ -132,4 +132,5 @@ dmypy.json
 # Custom
 Twitter/.twitter_credentials.yaml
 .DS_Store
+Data
 
