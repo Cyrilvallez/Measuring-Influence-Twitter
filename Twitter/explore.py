@@ -8,8 +8,8 @@ Created on Thu Oct 13 10:46:34 2022
 
 import numpy as np
 import pandas as pd
-import os
-from urlexpander import expand
+import urlexpander
+import tldextract
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 def read_json(file, skiprows=0):
@@ -51,6 +51,8 @@ hashtags = []
 categories = []
 original_texts = []
 URLs = []
+domains = []
+domain_suffixes = []
 countries = []
 country_codes = []
 sentiments = []
@@ -103,17 +105,23 @@ for x in df.itertuples():
             else:
                 urls.append(dic['expanded_url'])
     
-    # This is a huge bottleneck but allows to expand the urls that would otherwise
-    # not be workable
+    # This is a bottleneck but allows to expand some urls that would otherwise
+    # not be workable with
     for i, url in enumerate(urls):
-        if 'bit.ly' in url:
-            urls[i] = expand(url)
+        if urlexpander.is_short(url) or 'act.gp' in url:
+            urls[i] = urlexpander.expand(url)
+            
+    parsing = [tldextract.extract(url) for url in urls]
+    domain = [url.domain for url in parsing]
+    domain_suffix = [url.suffix for url in parsing]
                 
     usernames.append(username)
     hashtags.append(hashtag)
     categories.append(category)
     original_texts.append(original_text)
     URLs.append(urls)
+    domains.append(domain)
+    domain_suffixes.append(domain_suffix)
     countries.append(country)
     country_codes.append(country_code)
     sentiments.append(sentiment)
@@ -123,13 +131,15 @@ df['hashtags'] = hashtags
 df['category'] = categories
 df['original_text'] = original_texts
 df['URLs'] = URLs
+df['domain'] = domains
+df['domain_suffix'] = domain_suffixes
 df['country'] = countries
 df['country_code'] = country_codes
 df['sentiment'] = sentiments
     
 post_process_cols = ['id', 'author_id', 'username', 'created_at', 'lang', 'text',
-                     'original_text', 'hashtags', 'category', 'URLs', 'country',
-                     'country_code', 'sentiment']
+                     'original_text', 'hashtags', 'category', 'URLs', 'domain',
+                     'domain_suffix', 'country', 'country_code', 'sentiment']
 
 export = False
 
@@ -152,4 +162,20 @@ unique, counts = np.unique(df['category'], return_counts=True)
 #%%
 
 unique, counts = np.unique(df['sentiment'], return_counts=True)
+
+#%%
+
+def classify(domain_list):
+    for domain in domain_list:
+        if domain == "cnn":
+            return "cnn"
+        elif domain == "foxnews":
+            return "foxnews"
+        elif domain == "greenpeace":
+            return "greenpeace"
+        elif domain == "permianproud":
+            return "permianproud"
+        else:
+            pass
+    
 

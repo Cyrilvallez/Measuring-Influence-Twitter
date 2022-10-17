@@ -33,11 +33,11 @@ begin
 	#Select the data file (defaults to ExampleBWData.csv):\
 	#$(@bind datafile FilePicker())
 	#"""
-	datafolder = "../../Data/BrandWatch/"
+	datafolder = "../../Data/Twitter/"
 	
 	md"""
-	Select all the data files (defaults to only "ExampleBWData.csv" if none are chosen):\
-	$(@bind datafiles MultiSelect([file for file in readdir(datafolder) if !occursin("news", file)]))
+	Select all the data files :
+	$(@bind datafiles MultiSelect([file for file in readdir(datafolder) if occursin(".csv", file)]))
 	"""
 end
 
@@ -45,26 +45,52 @@ end
 begin
 	#if isnothing(datafiles)
 	if isempty(datafiles)
-		data = CSV.read(datafolder * "ExampleBWData.csv", DataFrame; header=7);
+		data = CSV.read(datafolder * "cop26_whole_period_extended_2.csv", DataFrame; header=1, types=String);
 	else
 		#data = CSV.read(datafile["data"], DataFrame; header=7);
-		frames = [CSV.read(file, DataFrame; header=7) for file in datafiles]
+		frames = [CSV.read(datafolder * file, DataFrame; header=1, types=String) for file in datafiles]
 		data = vcat(frames...)
 	end
-	clean_dates = x -> floor(DateTime(split(x, '.')[1], "yyyy-mm-dd HH:MM:ss"), Dates.Minute(5));
-	data.time = clean_dates.(data.Date);
-	data = data[.~ismissing.(data."Expanded URLs"), :]
+
+	# Parse from strings to array (this cannot be done automatically when loading data)
+	function str_to_vec(string)
+    	if ismissing(string)
+        	return missing
+    	end
+    	list = split(string[2:end-1], "', ")
+    	res = []
+    	for str in list
+        	if first(str) == '\'' && last(str) == '\''
+            	push!(res, String(collect(str)[2:end-1]))
+        	elseif first(str) == '\''
+            	push!(res, String(collect(str)[2:end]))
+        	elseif last(str) == '\''
+            	push!(res, String(collect(str)[1:end-1]))
+        	end
+    	end
+    	return res
+	end
+
+	data."hashtags" = data."hashtags" .|> str_to_vec
+	data."category" = data."category" .|> str_to_vec
+	data."URLs" = data."URLs" .|> str_to_vec
+	data."domain" = data."domain" .|> str_to_vec
+	data."domain_suffix" = data."domain_suffix" .|> str_to_vec
+	
+	clean_dates = x -> floor(DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS"), Dates.Minute(5));
+	data.time = clean_dates.(data."created_at");
+	DataFrames.rename!(data, "username" => "Author")
+	DataFrames.rename!(data, "sentiment" => "Sentiment")
+
 	md"""
 	## Defining Investigation Scope
 	
 	Choose the way to identify the data partition: $(@bind part_fun Select(partition_options))
 	
 	Choose the way to define actor groups: $(@bind actor_fun Select(actor_options,
-	default=country))
+	default=author_first_letter))
 	
-	Choose the way to define distinct action types: $(@bind action_fun Select(action_options, default=trust_popularity_score))
-	
-	
+	Choose the way to define distinct action types: $(@bind action_fun Select(action_options, default=naive_tufm))
 	"""
 end
 
@@ -83,7 +109,7 @@ begin
 
 	md"""
 	Choose the transfer entropy value cuttoff value (above which we will consider influence to occur) and the type of edge to plot between actors:\
-	Cuttoff:   $(@bind cuttoff Slider(0:0.01:4, default=1.0, show_value=true))\
+	Cuttoff:   $(@bind cuttoff Slider(0:0.01:4, default=0.5, show_value=true))\
 	Edge type: $(@bind et Slider(edgeTypes, show_value=true, default="Any Edge"))\
 
 	
@@ -1596,7 +1622,7 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═1e33f69e-247c-11ed-07ff-e9204ff08266
+# ╟─1e33f69e-247c-11ed-07ff-e9204ff08266
 # ╟─e8ebe45d-1e7d-433c-93cd-50407798e06e
 # ╟─6f95f316-fd7b-47ab-a2e5-eb4b3c621673
 # ╟─ab19705f-f72d-45a5-b77b-75ee4450e647

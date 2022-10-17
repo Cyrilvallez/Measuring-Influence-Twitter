@@ -50,7 +50,7 @@ begin
 
 	function trust_popularity_score(df)
 
-		score = CSV.read("news_table-v1-UT60-FM5.csv", DataFrame; header=1)
+		score = CSV.read("../../Data/BrandWatch/news_table-v1-UT60-FM5.csv", DataFrame; header=1)
 		score = score[score."tufm_class" .!= "0", :]
 		# get host name from the expanded url
 		df."News host domain" = df."Expanded URLs" .|> x -> URI(x).host
@@ -71,12 +71,37 @@ begin
 		return df
 	end
 
+	function naive_tufm(df)
+
+		function classify(domain_list)
+			for domain in domain_list
+				if domain == "cnn"
+					return "TM"
+				elseif domain == "foxnews"
+					return "UM"
+				elseif domain == "greenpeace"
+					return "TF"
+				elseif domain == "permianproud"
+					return "UF"
+				else
+					continue
+				end
+			end
+			return "0"
+		end
+
+		df.action = df."domain" .|> classify
+		df = df[df.action .!= "0", :]
+		return df
+	end
+
 end
 
 action_options = [
 	secure_url,
 	topic_discussed,
-	trust_popularity_score
+	trust_popularity_score,
+	naive_tufm
 ]
 
 

@@ -35,7 +35,7 @@ html"""<style>
 
 # ╔═╡ aed64831-056a-407f-ae47-7840cbee3ed5
 begin
-	data = CSV.read("../../Data/1_Raw/MIPSTEST.csv", DataFrame; header=7);
+	data = CSV.read("../../Data/BrandWatch/ExampleBWData.csv", DataFrame; header=7);
 		clean_dates = x -> floor(DateTime(split(x, '.')[1], "yyyy-mm-dd HH:MM:ss"), Dates.Minute(5));
 		data.time = clean_dates.(data.Date);
 		data = data[(data."Page Type" .== "twitter") .&& .~ismissing.(data."Expanded URLs"), :]
