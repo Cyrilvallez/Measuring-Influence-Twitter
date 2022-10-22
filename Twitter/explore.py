@@ -12,7 +12,7 @@ import urlexpander
 import tldextract
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-def read_json(file, skiprows=0):
+def read_json(file, skiprows=1):
     """
     Read a json file into a DataFrame but skipping the N first rows.
 
@@ -38,9 +38,11 @@ def read_json(file, skiprows=0):
         df = pd.read_json(f, lines=True, dtype=object, convert_dates=False)
     return df
 
-filename = '/Users/cyrilvallez/Desktop/Thesis_repo/Data/Twitter/cop26_whole_period_extended_2.json'
+filename = '/Users/cyrilvallez/Desktop/Thesis_repo/Data/Twitter/cop26_whole_period.json'
+# filename = '/Users/cyrilvallez/Desktop/Thesis_repo/Data/Twitter/test_richmond_4.json'
 
 df = read_json(filename, skiprows=1)
+# df = read_json('/Users/cyrilvallez/Desktop/Thesis_repo/Data/Twitter/test_richmond.json')
 
 # Checks that author_id correspond correctly
 assert ((df['author_id'] == df['author'].apply(lambda x: x['id'])).all())
@@ -69,13 +71,17 @@ for x in df.itertuples():
     country_code = x.geo['country_code'] if pd.notnull(x.geo) else float('nan')
         
     category = [dic['type'] for dic in x.referenced_tweets] if \
-        type(x.referenced_tweets) == list else ['tweeted']
+        ('referenced_tweets' in x._fields and type(x.referenced_tweets) == list) else ['tweeted']
         
     original_text = x.referenced_tweets[0]['text'] if category == ['retweeted'] else x.text
     
-    sentiment_scores = analyzer.polarity_scores(original_text)
-    sentiment_scores = {key:sentiment_scores[key] for key in ['pos', 'neu', 'neg']}
-    sentiment = max(sentiment_scores, key=sentiment_scores.get)
+    compound = analyzer.polarity_scores(original_text)['compound']
+    if compound > 0.05:
+        sentiment = 'positive'
+    elif compound < -0.05:
+        sentiment = 'negative'
+    else:
+        sentiment = 'neutral'
     
     urls = []
     # If it is a retweet, the entities are given in the parent tweet elements most
@@ -149,18 +155,6 @@ if export:
 
 #%%
 
-test2 = df.apply(lambda x: [a['type'] for a in x['referenced_tweets']] if type(x['referenced_tweets']) == list else ['tweet'] , axis=1)
-    
-    
-#%%
-
-test = df['category'].apply(lambda x: True if x == ['quoted'] else False)
-# indices = (test == True).index
-
-unique, counts = np.unique(df['category'], return_counts=True)
-
-#%%
-
 unique, counts = np.unique(df['sentiment'], return_counts=True)
 
 #%%
@@ -173,9 +167,63 @@ def classify(domain_list):
             return "foxnews"
         elif domain == "greenpeace":
             return "greenpeace"
-        elif domain == "permianproud":
-            return "permianproud"
+        elif domain == "richmondstandard":
+            return "richmondstandard"
         else:
-            pass
+            return "0"
     
+
+
+#%%
+
+df['real_domain'] = df['domain'].apply(classify)
+df = df[df['real_domain'] != "0"]
+unique, counts = np.unique(df['real_domain'], return_counts=True)
+print(unique)
+print(counts)
+
+#%%
+
+avg = df['original_text'].apply(lambda x: len(x.split(' '))).quantile(q=0.75)
+print(avg)
+
+#%%
+
+for i in range(len(df)):
+    text = df['original_text'][i]
+    print(f'{i} \n{text} \n \n')
+
+#%%
+
+from transformers import pipeline
+
+classifier = pipeline("sentiment-analysis")
+
+#%%
+
+t0 = time.time()
+i = 5
+print(df['original_text'][i])
+print('\n')
+print(classifier(df['original_text'][i]))
+
+#%%
+
+t0 = time.time()
+for i in range(10):
+    a = classifier(df['original_text'][i])
+print(f'{time.time() - t0} s')
+
+#%%
+
+
+test = df['original_text'].apply(lambda x: classifier(x)[0]['label'])
+
+#%%
+
+unique, count = np.unique(df['username'].apply(lambda x: x[0]), return_counts=True)
+
+
+
+
 

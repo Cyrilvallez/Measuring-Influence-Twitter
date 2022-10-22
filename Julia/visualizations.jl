@@ -76,9 +76,9 @@ function plot_actors_per_level(influences_cascades::Vector{Vector{InfluenceCasca
     end
     for ax in axes[end, :]
         ax.set(xlabel="Level")
-        ax.set_xlim(left=-0.1)
+        ax.set_xlim(left=-1)
         xticks = ax.get_xticks()
-        xticks = xticks[1]:xticks[end]
+        xticks = 0:round(xticks[end])
         ax.set(xticks=xticks)
     end
 

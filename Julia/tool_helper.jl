@@ -10,10 +10,16 @@ begin
 		df.partition = df.Sentiment
 		return df
 	end
+
+	function no_partition(df)
+		df.partition = ["Full dataset" for i = 1:length(df[:,1])]
+		return df
+	end
 end
 
 partition_options = [ 
-	sentiment
+	sentiment,
+	no_partition
 ]
 
 ## Actor Agregators

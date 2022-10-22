@@ -49,7 +49,7 @@ function print_graph(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75))
     return g
 end
 
-function influence_layout(adj; simplifier = x->(maximum(x)>0.75))
+function influence_layout(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75))
     graph = simplifier.(adj)
     num_nodes = size(graph)[1]
     influencers = fill(false, num_nodes)
@@ -93,11 +93,6 @@ function influence_layout(adj; simplifier = x->(maximum(x)>0.75))
 
     return x_pos, y_pos, (1:length(x_pos))[influencers.&& .~no_influence]
 end
-
-#function print_edges()
-
-
-
 
 
 

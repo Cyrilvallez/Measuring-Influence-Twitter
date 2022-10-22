@@ -90,7 +90,7 @@ if __name__ == "__main__":
     max_per_page = args.max_per_page
     # If max_pages is -1 we set it to inf so that there are no limits
     max_pages = args.max_pages if args.max_pages != -1 else float('inf')
-    print(query)
+    print(f'The query you used is : \n{query}')
     
     filename = utils.format_filename(filename)
     

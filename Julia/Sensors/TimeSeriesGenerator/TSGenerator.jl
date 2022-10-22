@@ -11,69 +11,7 @@ mutable struct TimeSeriesGenerator  <: Sensor
     part_col
 end
 
-# default
-function TimeSeriesGenerator()
-    TimeSeriesGenerator(example_actor_agregator, example_action_labeler)
-end
 
-#function print(tsg::TimeSeriesGenerator)
-
-#end
-
-function help(type::typeof(TimeSeriesGenerator))
-    println(""" To define a TimeSeriesGenerator sensor, we need two things: an actor_agregaor and an action_labeler. Input data is assumed to be in a DataFrame and include at minimum "time" (timestamp of action) and "parition" (some labeling scheme comparable to the ICE programs narratives)
-        
-        actor_agregator: function that labels each sample as having been sourced from a particular actor. 
-            built-in options include:
-                1. example_actor_agregator: assumes the input data has the column "source", which it simply uses to set the actor column
-    
-        action_labeler: function that labels each sample as being one of a number of action types (should be mutually exclusive)
-            build-in options include:
-                1. example_action_agregator: assumes the input data has the column "content". The function identifies one of three action types: "talk about economy" (content contains the word "economy"), "talk about war" (content contains the word "war"), and "default" (else). 
-        
-
-        To "take a measurement" of the data, call `observe(data)`. This takes in a DataFrame with at least columns "time" and "partition" and outputs a P dimensional vector of N dimensional vectors of TimeArray objects, where P is the number of partitions, N is the number of distinct actors, and each TimeArray object essentially contains a timeseries for each action with the value of 1 if that actor took that action during that time step.
-
-        Use the constructor TimeSeriesGenerator() to use the example functions, or define your own and use TimeSeriesGenerator(func1, func2)
-
-    """)
-end
-
-function example_actor_agregator(data)
-    # for data pulled from /Data/1_Raw/articles1
-    # defines the actor as the news source
-    data.actor = data.source
-    return data
-end
-
-function example_action_labeler(data)
-    # for data pulled from /Data/1_Raw/articles1
-    # placeholder actions are:
-    #   "talk about economy"    - the article says "economy"
-    #   "talk about war"        - the article says "war"
-    #   "default"               - the article says neither
-
-    actions = []
-    for text in data.content
-        action = "default"
-        if occursin("economy", text)
-            action = "talk about economy"
-        elseif occursin("war", text)
-            action = "talk about war"
-        end
-        push!(actions, action)
-    end
-    data.action = actions
-
-    # should always return only time, actor, action, and partition
-    return data[:,[:time, :actor, :action, :partition]]
-end
-
-
-function observe(data, tsg::TimeSeriesGenerator)
-    data = data |> tsg.actor_agregator |> tsg.action_labeler |> x->sort(x,:time)
-    return observe(data)#df_sub, unique(data.action)
-end
 
 function observe(data, tsg::TimeSeriesGenerator)  
 # creates a hierachical list of time series 

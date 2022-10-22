@@ -132,11 +132,13 @@ begin
 	end
 	s = make_simplifier(et)
 
-	icg = InfluenceCascadeGenerator(s)
-	influence_cascades = observe.(influence_graph, Ref(icg));
-	all_ics = vcat(influence_cascades...);
-	
-	i = (1:length(unique(df[!,tsg.part_col])))[findfirst(x->x==part, unique(df[!,tsg.part_col]))]
+	icg = InfluenceCascadeGenerator(cuttoff)
+	influence_cascades = observe.(influence_graph, Ref(icg))
+	all_ics = vcat(influence_cascades...)
+	all_ics = Vector{InfluenceCascade}(all_ics)
+
+	partitions = unique(df[!,tsg.part_col])
+	i = (1:length(partitions))[findfirst(x->x==part, partitions)]
 	xs, ys, influencers = influence_layout(influence_graph[i]; simplifier=s)
 	g = print_graph(influence_graph[i]; simplifier=s)
 
@@ -166,42 +168,39 @@ begin
 		end
 		end
 
-	layout = PlotlyBase.Layout(
-		title_text = "Influence graph (undirected)",
-    	showlegend = false,
-    	geo = PlotlyBase.attr(
-        	showland = true,
-        	showcountries = true,
-        	showocean = true,
-        	countrywidth = 0.5,
-        	#landcolor = "rgb(230, 145, 56)",
-        	#lakecolor = "rgb(0, 255, 255)",
-        	#oceancolor = "rgb(0, 255, 255)",
-			projection = PlotlyBase.attr(type = "natural earth"),
-			#scope = "africa",
-		),
-		#modebar = attr(remove = ["zoomOutGeo"]),
-		#dragmode = "pan"
-		)
+		layout = PlotlyBase.Layout(
+			title_text = "Influence graph (undirected)",
+    		showlegend = false,
+    		geo = PlotlyBase.attr(
+        		showland = true,
+        		showcountries = true,
+        		showocean = true,
+        		countrywidth = 0.5,
+        		#landcolor = "rgb(230, 145, 56)",
+        		#lakecolor = "rgb(0, 255, 255)",
+        		#oceancolor = "rgb(0, 255, 255)",
+				projection = PlotlyBase.attr(type = "natural earth"),
+				#scope = "africa"
+				),
+			#modebar = attr(remove = ["zoomOutGeo"]),
+			#dragmode = "pan"
+			)
 
-	
-	PlutoPlotly.plot(traces, layout)
+		PlutoPlotly.plot(traces, layout)
 
 	# In this case we plot a simple graph of the actors
 	else
-	gplot(g, xs, ys, nodelabel=unique(df.actor))
+		gplot(g, xs, ys, nodelabel=unique(df.actor))
 	end
 end
-
-# ╔═╡ 2551592e-cad8-4a7a-87e4-0b9085fa2736
-influence_cascades[1][1]
 
 # ╔═╡ f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 begin
 	infl = unique(df.actor)[influencers]
 	md"""
 	Choose the two influence cascades you would like to compare:\
-	$(@bind influencer_node1 Select(infl))	$(@bind influencer_node2 Select(infl[Not(findfirst(x->x==influencer_node1, infl))]))
+	$(@bind influencer_node1 Select(infl, default=infl[1]))	
+	$(@bind influencer_node2 Select(infl, default=infl[2]))
 	"""
 end
 
@@ -226,13 +225,11 @@ end
 begin
 	[PlutoPlotly.plot(plot_cascade_sankey(
 	influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node1, unique(df[!, tsg.actor_col])[influencers])],
-	unique(df[!, tsg.action_col]),
-	cuttoff)...),
+	unique(df[!, tsg.action_col]))...),
 		
 	PlutoPlotly.plot(plot_cascade_sankey(
 	influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node2, unique(df[!, tsg.actor_col])[influencers])],
-	unique(df[!, tsg.action_col]),
-	cuttoff)...)
+	unique(df[!, tsg.action_col]))...)
 	]
 end
 
@@ -312,8 +309,7 @@ begin
 		p, j = partition_map[c], c%idxs[1+partition_map[c]]+1
 		push!(plts1, string("Partition '",unique(df.partition)[p], "'") => PlutoPlotly.plot(plot_cascade_sankey(
 		influence_cascades[p][j],
-		unique(df.action),
-		cuttoff)...))
+		unique(df.action))...))
 	end
 	plts1
 end
@@ -347,8 +343,7 @@ begin
 		p, j = partition_map[c], c%idxs[1+partition_map[c]]+1
 		push!(plts2, string("Partition '",unique(df.partition)[p], "'") => PlutoPlotly.plot(plot_cascade_sankey(
 		influence_cascades[p][j],
-		unique(df.action),
-		cuttoff)...))
+		unique(df.action))...))
 	end
 	plts2
 end
@@ -1631,10 +1626,9 @@ version = "1.4.1+0"
 # ╟─6f95f316-fd7b-47ab-a2e5-eb4b3c621673
 # ╟─ab19705f-f72d-45a5-b77b-75ee4450e647
 # ╟─2f95e8f5-7a66-4134-894d-9b4a05cc8006
-# ╠═2551592e-cad8-4a7a-87e4-0b9085fa2736
 # ╟─f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 # ╟─7defe873-ab21-429d-becc-872af5cf3ec1
-# ╟─7e3bc641-c833-4802-a80e-f2c36048a4c1
+# ╠═7e3bc641-c833-4802-a80e-f2c36048a4c1
 # ╟─48e78de3-0a64-436a-a35c-10038a6ed7e3
 # ╟─2b0f454f-aa62-4ba7-ac01-efec2a19672d
 # ╟─a45d006d-c198-45d8-8cf4-8c8a813289a0
