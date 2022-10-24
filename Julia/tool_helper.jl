@@ -1,8 +1,5 @@
 using URIs
-include("Sensors/TopicClusterer/TrainValidate.jl")
 include("Sensors/CascadeClusterer/CascadeCluster.jl")
-
-tc = TopicClusterer(x->rand_time_embedding(x;col=:Title), (x, ε, minpts)->Clustering.dbscan(x, ε, min_cluster_size=minpts))
 
 ## Partition functions
 begin

@@ -15,16 +15,6 @@ mutable struct InfluenceCascadePlatform <: SensorPlatform
 
 end
 
-function InfluenceCascadePlatform(; cuttoff=0.5)
-
-    tsg = TimeSeriesGenerator()
-    ig  = InfluenceGrapher(["default","talk about economy","talk about war"])
-    icg = InfluenceCascadeGenerator(; cuttoff=cuttoff)
-
-    InfluenceCascadePlatform(tsg, ig, icg)
-
-end 
-
 function observe(data, icp::InfluenceCascadePlatform)
 
     return data |> 

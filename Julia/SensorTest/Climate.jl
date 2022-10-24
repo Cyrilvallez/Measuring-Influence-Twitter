@@ -132,7 +132,7 @@ begin
 	end
 	s = make_simplifier(et)
 
-	icg = InfluenceCascadeGenerator(s)
+	icg = InfluenceCascadeGenerator(cuttoff)
 	influence_cascades = observe.(influence_graph, Ref(icg));
 	all_ics = vcat(influence_cascades...);
 	
@@ -166,30 +166,30 @@ begin
 		end
 		end
 
-	layout = PlotlyBase.Layout(
-		title_text = "Influence graph (undirected)",
-    	showlegend = false,
-    	geo = PlotlyBase.attr(
-        	showland = true,
-        	showcountries = true,
-        	showocean = true,
-        	countrywidth = 0.5,
-        	#landcolor = "rgb(230, 145, 56)",
-        	#lakecolor = "rgb(0, 255, 255)",
-        	#oceancolor = "rgb(0, 255, 255)",
-			projection = PlotlyBase.attr(type = "natural earth"),
-			#scope = "africa",
-		),
-		#modebar = attr(remove = ["zoomOutGeo"]),
-		#dragmode = "pan"
-		)
+		layout = PlotlyBase.Layout(
+			title_text = "Influence graph (undirected)",
+    		showlegend = false,
+    		geo = PlotlyBase.attr(
+        		showland = true,
+        		showcountries = true,
+        		showocean = true,
+        		countrywidth = 0.5,
+        		#landcolor = "rgb(230, 145, 56)",
+        		#lakecolor = "rgb(0, 255, 255)",
+        		#oceancolor = "rgb(0, 255, 255)",
+				projection = PlotlyBase.attr(type = "natural earth"),
+				#scope = "africa",
+			),
+			#modebar = attr(remove = ["zoomOutGeo"]),
+			#dragmode = "pan"
+			)
 
 	
-	PlutoPlotly.plot(traces, layout)
+		PlutoPlotly.plot(traces, layout)
 
 	# In this case we plot a simple graph of the actors
 	else
-	gplot(g, xs, ys, nodelabel=unique(df.actor))
+		gplot(g, xs, ys, nodelabel=unique(df.actor))
 	end
 end
 

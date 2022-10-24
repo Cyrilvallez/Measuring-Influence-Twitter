@@ -59,7 +59,7 @@ function observe(data::Matrix{Matrix}, icg::InfluenceCascadeGenerator, normalize
         end
     end
 
-    influence_cascades = []
+    influence_cascades = Vector{InfluenceCascade}()
     M = size(data[1,1], 1)
 
     for influencer in influencers
@@ -146,6 +146,7 @@ function plot_cascade_sankey(influence_cascade::InfluenceCascade, actions)
 
     for (layer_idx, layer) in enumerate(layers)
         for i in 1:size(layer)[1], j in 1:size(layer)[2]
+            # We just check if this is not zero since the cuttoff has been applied before and the normalization allows for values < cuttoff
             if layer[i,j] > 0
                 # We need the last -1 because Plotly starts indexing at 0 instead
                 # of 1 (which contradicts Julia)

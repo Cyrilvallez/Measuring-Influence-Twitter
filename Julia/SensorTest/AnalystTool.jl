@@ -105,9 +105,9 @@ begin
 	end
 	s = make_simplifier(et)
 
-	icg = InfluenceCascadeGenerator(s)
-	influence_cascades = observe.(influence_graph, Ref(icg));
-	all_ics = vcat(influence_cascades...);
+	icg = InfluenceCascadeGenerator(cuttoff)
+	influence_cascades = observe.(influence_graph, Ref(icg))
+	all_ics = vcat(influence_cascades...)
 	
 	i = (1:length(unique(df[!,tsg.part_col])))[findfirst(x->x==part, unique(df[!,tsg.part_col]))]
 	xs, ys, influencers = influence_layout(influence_graph[i]; simplifier=s)
@@ -139,30 +139,30 @@ begin
 		end
 		end
 
-	layout = PlotlyBase.Layout(
-		title_text = "Influence graph (undirected)",
-    	showlegend = false,
-    	geo = PlotlyBase.attr(
-        	showland = true,
-        	showcountries = true,
-        	showocean = true,
-        	countrywidth = 0.5,
-        	#landcolor = "rgb(230, 145, 56)",
-        	#lakecolor = "rgb(0, 255, 255)",
-        	#oceancolor = "rgb(0, 255, 255)",
-			projection = PlotlyBase.attr(type = "natural earth"),
-			#scope = "africa",
-		),
-		#modebar = attr(remove = ["zoomOutGeo"]),
-		#dragmode = "pan"
-		)
+		layout = PlotlyBase.Layout(
+			title_text = "Influence graph (undirected)",
+    		showlegend = false,
+    		geo = PlotlyBase.attr(
+        		showland = true,
+        		showcountries = true,
+        		showocean = true,
+        		countrywidth = 0.5,
+        		#landcolor = "rgb(230, 145, 56)",
+        		#lakecolor = "rgb(0, 255, 255)",
+        		#oceancolor = "rgb(0, 255, 255)",
+				projection = PlotlyBase.attr(type = "natural earth"),
+				#scope = "africa",
+			),
+			#modebar = attr(remove = ["zoomOutGeo"]),
+			#dragmode = "pan"
+			)
 
 	
-	PlutoPlotly.plot(traces, layout)
+		PlutoPlotly.plot(traces, layout)
 
 	# In this case we plot a simple graph of the actors
 	else
-	gplot(g, xs, ys, nodelabel=unique(df.actor))
+		gplot(g, xs, ys, nodelabel=unique(df.actor))
 	end
 end
 
@@ -196,13 +196,11 @@ end
 begin
 	[PlutoPlotly.plot(plot_cascade_sankey(
 	influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node1, unique(df[!, tsg.actor_col])[influencers])],
-	unique(df[!, tsg.action_col]),
-	cuttoff)...),
+	unique(df[!, tsg.action_col]))...),
 		
 	PlutoPlotly.plot(plot_cascade_sankey(
 	influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node2, unique(df[!, tsg.actor_col])[influencers])],
-	unique(df[!, tsg.action_col]),
-	cuttoff)...)
+	unique(df[!, tsg.action_col]))...)
 	]
 end
 
@@ -211,7 +209,7 @@ md"""
 ## Analysis
 
 Choose the influence cascade embedding you would like to use:\
-$(@bind emb_meth Select(casc_emb_options))
+$(@bind emb_meth Select(casc_emb_options, default=stupid_embedding))
 
 Choose the clustering method you would like to use:\
 $(@bind clust_meth Select(casc_clust_options))
@@ -282,8 +280,7 @@ begin
 		p, j = partition_map[c], c%idxs[1+partition_map[c]]+1
 		push!(plts1, string("Partition '",unique(df.partition)[p], "'") => PlutoPlotly.plot(plot_cascade_sankey(
 		influence_cascades[p][j],
-		unique(df.action),
-		cuttoff)...))
+		unique(df.action))...))
 	end
 	plts1
 end
@@ -317,8 +314,7 @@ begin
 		p, j = partition_map[c], c%idxs[1+partition_map[c]]+1
 		push!(plts2, string("Partition '",unique(df.partition)[p], "'") => PlutoPlotly.plot(plot_cascade_sankey(
 		influence_cascades[p][j],
-		unique(df.action),
-		cuttoff)...))
+		unique(df.action))...))
 	end
 	plts2
 end
@@ -328,6 +324,12 @@ md"""Some statistics on the influence cascades for each partitions"""
 
 # ╔═╡ d478ea37-41dd-40a2-ba69-f40927b3aaf8
 plot_actors_per_level(influence_cascades, unique(df[!,:partition]))
+
+# ╔═╡ 25fe3d07-6e49-420d-aa19-89df9ba9bf3f
+sum(df."Sentiment" .== "negative")
+
+# ╔═╡ e0fbdbf0-eb75-4978-a09a-892634cd4de1
+
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1596,11 +1598,11 @@ version = "1.4.1+0"
 """
 
 # ╔═╡ Cell order:
-# ╠═1e33f69e-247c-11ed-07ff-e9204ff08266
+# ╟─1e33f69e-247c-11ed-07ff-e9204ff08266
 # ╟─e8ebe45d-1e7d-433c-93cd-50407798e06e
 # ╟─6f95f316-fd7b-47ab-a2e5-eb4b3c621673
 # ╟─ab19705f-f72d-45a5-b77b-75ee4450e647
-# ╟─2f95e8f5-7a66-4134-894d-9b4a05cc8006
+# ╠═2f95e8f5-7a66-4134-894d-9b4a05cc8006
 # ╟─f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 # ╟─7defe873-ab21-429d-becc-872af5cf3ec1
 # ╟─7e3bc641-c833-4802-a80e-f2c36048a4c1
@@ -1612,5 +1614,7 @@ version = "1.4.1+0"
 # ╟─8c33d28f-b31b-41d6-8856-602f57e52400
 # ╟─6847306d-fd38-4f37-81a9-604d03b57ff9
 # ╠═d478ea37-41dd-40a2-ba69-f40927b3aaf8
+# ╠═25fe3d07-6e49-420d-aa19-89df9ba9bf3f
+# ╠═e0fbdbf0-eb75-4978-a09a-892634cd4de1
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

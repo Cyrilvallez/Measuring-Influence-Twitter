@@ -18,31 +18,16 @@ begin
 end
 
 
-function actors_per_level(influence_cascade::InfluenceCascade, level_max::Int)
-    levels = [0 for i = 1:level_max]
-    if isempty(influence_cascade.nodes)
-        return levels
-    end
-    levels[1] = 1
-
-    # Weird trick to get the same ordering of the influence cascade as the other functions
-    # (e.g see the mean method)
-    levels[2] = length(influence_cascade[influence_cascade.start_node])>0 ? 
-        length(influence_cascade[influence_cascade.start_node]) : 0
-    others = [j for j in keys(influence_cascade.nodes) if j != influence_cascade.start_node]
-    for (i, key) in enumerate(others)
-        levels[i+2] = length(influence_cascade[key])>0 ? length(influence_cascade[key]) : 0
-    end
-
-    return levels
-end
-
-
 function mean_actors_per_level(influence_cascades::Vector{InfluenceCascade})
-    level_max = maximum(x -> length(x.nodes), influence_cascades) + 1
-    mean_levels = mean(actors_per_level.(influence_cascades, Ref(level_max)), dims=1)
-    # convert to single dimension
-    return [mean_levels[1][i] for i in 1:length(mean_levels[1])]
+    N = length(influence_cascades)
+    level_max = maximum([length(cascade.actors_per_level) for cascade in influence_cascades])
+    mean_actor = zeros(level_max)
+    for i = 1:level_max
+        mean_ = sum([cascade.actors_per_level[i] for cascade in influence_cascades if length(cascade.actors_per_level) >= i])
+        mean_actor[i] = mean_ / N
+    end
+
+    return mean_actor
 end
 
 

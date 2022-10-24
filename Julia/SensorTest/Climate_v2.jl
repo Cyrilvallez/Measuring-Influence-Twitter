@@ -135,7 +135,6 @@ begin
 	icg = InfluenceCascadeGenerator(cuttoff)
 	influence_cascades = observe.(influence_graph, Ref(icg))
 	all_ics = vcat(influence_cascades...)
-	all_ics = Vector{InfluenceCascade}(all_ics)
 
 	partitions = unique(df[!,tsg.part_col])
 	i = (1:length(partitions))[findfirst(x->x==part, partitions)]
@@ -238,7 +237,7 @@ md"""
 ## Analysis
 
 Choose the influence cascade embedding you would like to use:\
-$(@bind emb_meth Select(casc_emb_options))
+$(@bind emb_meth Select(casc_emb_options, default=stupid_embedding))
 
 Choose the clustering method you would like to use:\
 $(@bind clust_meth Select(casc_clust_options))
@@ -1628,7 +1627,7 @@ version = "1.4.1+0"
 # ╟─2f95e8f5-7a66-4134-894d-9b4a05cc8006
 # ╟─f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 # ╟─7defe873-ab21-429d-becc-872af5cf3ec1
-# ╠═7e3bc641-c833-4802-a80e-f2c36048a4c1
+# ╟─7e3bc641-c833-4802-a80e-f2c36048a4c1
 # ╟─48e78de3-0a64-436a-a35c-10038a6ed7e3
 # ╟─2b0f454f-aa62-4ba7-ac01-efec2a19672d
 # ╟─a45d006d-c198-45d8-8cf4-8c8a813289a0
