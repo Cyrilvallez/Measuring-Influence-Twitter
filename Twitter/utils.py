@@ -8,9 +8,11 @@ Created on Thu Oct 13 09:39:26 2022
 
 import os
 import yaml
+import pandas as pd
+import numpy as np
 
 
-def get_credentials(path=".twitter_credentials.yaml"):
+def get_credentials(path: str = ".twitter_credentials.yaml") -> dict:
     """
     Retrieves the twitter credential from a yaml file.
 
@@ -22,7 +24,7 @@ def get_credentials(path=".twitter_credentials.yaml"):
 
     Returns
     -------
-    credentials : dictionary
+    credentials : dict
         Dictionary containing the credentials contained in the yaml file.
 
     """
@@ -33,7 +35,7 @@ def get_credentials(path=".twitter_credentials.yaml"):
 
 
 
-def load_query(query_path):
+def load_query(query_path: str) -> str:
     """
     Load a text file containing the query.
 
@@ -56,7 +58,8 @@ def load_query(query_path):
 
 
 
-def format_filename(filename, folder='../Data/Twitter/', extension='.json'):
+def format_filename(filename: str, folder: str = '../Data/Twitter/',
+                    extension: str = '.json') -> str:
     """
     Format the original filename to meet the format.
 
@@ -90,3 +93,34 @@ def format_filename(filename, folder='../Data/Twitter/', extension='.json'):
     
     return filename
 
+
+
+def clean_news_table(path: str = '../Data/news_table-v1-UT60-FM5.csv') -> None:
+    """
+    Remove all duplicates in the news table, and save the clean version to csv.
+
+    Parameters
+    ----------
+    path : str, optional
+        The path to the news table. The default is '../Data/news_table-v1-UT60-FM5.csv'.
+
+    Returns
+    -------
+    None
+
+    """
+    
+    news = pd.read_csv(path)
+    # Removes all duplicates
+    news.drop_duplicates(inplace=True, ignore_index=True)
+    news.sort_values('Domain', inplace=True, ignore_index=True)
+    unique, indices = np.unique(news['Domain'], return_index=True)
+    news = news.iloc[indices].reset_index(drop=True)
+    # removes unused rows
+    news = news[news['tufm_class'] != '0'].reset_index(drop=True)
+    # removes unused column
+    news.drop('ID', axis=1, inplace=True)
+    # rename column (for consistency)
+    news.rename(columns={'Domain': 'domain'}, inplace=True)
+    
+    news.to_csv('../Data/news_table_clean.csv', index=False)

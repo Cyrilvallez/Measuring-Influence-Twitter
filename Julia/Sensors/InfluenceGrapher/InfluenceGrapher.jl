@@ -1,6 +1,6 @@
 using DataFrames
 using TimeSeries
-using IterTools: product
+using PlotlyBase
 
 #using CausalityTools
 include("../../entropy.jl")
@@ -29,7 +29,11 @@ function observe(data, ig::InfluenceGrapher)
             adj .= 0 
             if i ≠ j
                 for initial in colnames(part[i]), final in colnames(part[j])
-                    tr_en = ig.transfer_entropy(Int.(values(part[i][Symbol(initial)]) .> 0), Int.(values(part[j][Symbol(final)]) .> 0))
+                    if ig.transfer_entropy == TE
+                        tr_en = ig.transfer_entropy(Int.(values(part[i][Symbol(initial)]) .> 0), Int.(values(part[j][Symbol(final)]) .> 0))
+                    else
+                        tr_en = ig.transfer_entropy(values(part[i][Symbol(initial)]), values(part[j][Symbol(final)]))
+                    end
                     adj[indexin([String(initial)], ig.actiontypes), indexin([String(final)], ig.actiontypes)] .= isnan(tr_en) ? 0 : tr_en
                 end
             end
@@ -95,4 +99,43 @@ function influence_layout(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75)
 end
 
 
+function map_plot(df::DataFrame)
 
+    iso_codes = unique(df.actor)
+	indices = indexin(iso_codes, df.actor)
+	countries = df."Country"[indices]
+	traces = Vector{GenericTrace{Dict{Symbol, Any}}}()
+		
+	for (i, e) in enumerate(edges(g))
+    	trace = PlotlyBase.scattergeo(  
+	    	mode = "markers+lines",
+	    	locations = [iso_codes[src(e)], iso_codes[dst(e)]],
+	    	marker = PlotlyBase.attr(size = 8, color="blue"),
+			line = PlotlyBase.attr(color="red", width=1),
+			showlegend=false,
+			name = "",
+			hovertext = [countries[src(e)], countries[dst(e)]],
+		)
+    	push!(traces, trace)
+	end
+
+	layout = PlotlyBase.Layout(
+		title_text = "Influence graph (undirected)",
+    	showlegend = false,
+    	geo = PlotlyBase.attr(
+        	showland = true,
+        	showcountries = true,
+        	showocean = true,
+        	countrywidth = 0.5,
+        	#landcolor = "rgb(230, 145, 56)",
+        	#lakecolor = "rgb(0, 255, 255)",
+        	#oceancolor = "rgb(0, 255, 255)",
+			projection = PlotlyBase.attr(type = "natural earth"),
+			#scope = "africa"
+			),
+		#modebar = attr(remove = ["zoomOutGeo"]),
+		#dragmode = "pan"
+		)
+
+        return traces, layout
+end

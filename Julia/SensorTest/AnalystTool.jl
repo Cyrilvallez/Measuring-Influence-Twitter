@@ -37,7 +37,7 @@ begin
 	
 	md"""
 	Select all the data files (defaults to only "ExampleBWData.csv" if none are chosen):\
-	$(@bind datafiles MultiSelect([file for file in readdir(datafolder) if !occursin("news", file)]))
+	$(@bind datafiles MultiSelect([file for file in readdir(datafolder) if occursin(".csv", file) && !occursin("news", file)]))
 	"""
 end
 
@@ -165,6 +165,9 @@ begin
 		gplot(g, xs, ys, nodelabel=unique(df.actor))
 	end
 end
+
+# ╔═╡ e6c1d57c-7b3f-4843-9e1d-bb76a303f55e
+sum(df.actor .== "UGA")
 
 # ╔═╡ f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 begin
@@ -327,9 +330,6 @@ plot_actors_per_level(influence_cascades, unique(df[!,:partition]))
 
 # ╔═╡ 25fe3d07-6e49-420d-aa19-89df9ba9bf3f
 sum(df."Sentiment" .== "negative")
-
-# ╔═╡ e0fbdbf0-eb75-4978-a09a-892634cd4de1
-
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
@@ -1602,7 +1602,8 @@ version = "1.4.1+0"
 # ╟─e8ebe45d-1e7d-433c-93cd-50407798e06e
 # ╟─6f95f316-fd7b-47ab-a2e5-eb4b3c621673
 # ╟─ab19705f-f72d-45a5-b77b-75ee4450e647
-# ╠═2f95e8f5-7a66-4134-894d-9b4a05cc8006
+# ╟─2f95e8f5-7a66-4134-894d-9b4a05cc8006
+# ╠═e6c1d57c-7b3f-4843-9e1d-bb76a303f55e
 # ╟─f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 # ╟─7defe873-ab21-429d-becc-872af5cf3ec1
 # ╟─7e3bc641-c833-4802-a80e-f2c36048a4c1
@@ -1615,6 +1616,5 @@ version = "1.4.1+0"
 # ╟─6847306d-fd38-4f37-81a9-604d03b57ff9
 # ╠═d478ea37-41dd-40a2-ba69-f40927b3aaf8
 # ╠═25fe3d07-6e49-420d-aa19-89df9ba9bf3f
-# ╠═e0fbdbf0-eb75-4978-a09a-892634cd4de1
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

@@ -13,7 +13,8 @@ import argparse
 import utils
 
 
-def make_query(filename, query, start_time, end_time, max_per_page, max_pages):
+def make_query(filename: str, query: str, start_time: datetime,
+               end_time: datetime, max_per_page: int, max_pages: int) -> None:
     """
     Make a "search all" query to the twitter API v2 and saves the results to
     the given `filename`.
