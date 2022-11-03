@@ -22,8 +22,6 @@ end
 
 
 """
-    mean_actors_per_level(influence_cascades::Vector{InfluenceCascade})
-
 Return the mean number of actors of all the influence cascades, at each level.
 """
 function mean_actors_per_level(influence_cascades::Vector{InfluenceCascade})
@@ -39,68 +37,107 @@ function mean_actors_per_level(influence_cascades::Vector{InfluenceCascade})
 end
 
 """
-    plot_actors_per_level(influences_cascades::Vector{Vector{InfluenceCascade}}, titles)
-
 Plot the mean number of actors of all the influence cascades, at each level.
 """
-function plot_actors_per_level(influences_cascades::Vector{Vector{InfluenceCascade}}, titles)
-    partition_levels = mean_actors_per_level.(influences_cascades)
-    levels = [0:(length(x)-1) for x in partition_levels]
+function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame; split_by_partition::Bool = true, save::Bool = false, filename = nothing)
 
-    N = length(partition_levels)
-    if N <= 4
-        Nx = min(2, N)
-        Ny = N ÷ 2 + 1
-    else
-        Nx = 3
-        Ny = N ÷ 3 + 1
+    if save && isnothing(filename)
+        throw(ArgumentError("You must provide a filename if you want to save the figure."))
     end
 
-    fig = nothing
-    if !(Nx == 1 && Ny == 1)
-        (fig, axes) = plt.subplots(Nx, Ny, figsize=(8,8), sharex=true, sharey=true)
-        idx = 0
-        for ax in axes
-            idx += 1
-            if idx > N
-                break
-            else
-                ax.bar(levels[idx], partition_levels[idx])
-                ax.set(title=titles[idx])
-            end
-        end
-    
-        for ax in axes[:,1]
-            ax.set(ylabel="Mean number of actors")
-        end
-        for ax in axes[end, :]
-            ax.set(xlabel="Level")
-            ax.set_xlim(left=-1)
-            xticks = ax.get_xticks()
-            xticks = 0:round(xticks[end])
-            ax.set(xticks=xticks)
+    if split_by_partition
+        partition_levels = mean_actors_per_level.(influence_cascades)
+        levels = [0:(length(x)-1) for x in partition_levels]
+        titles = unique(df[!,:partition])
+    else
+        partition_levels = mean_actors_per_level(vcat(influence_cascades...))
+        levels = 0:(length(partition_levels)-1)
+    end
+
+    if split_by_partition
+        N = length(partition_levels)
+        if N == 1
+            Nx = 1
+            Ny = 1
+        elseif N == 2
+            Nx = 2
+            Ny = 1
+            figsize = (8, 4)
+        elseif N <= 4
+            Nx = min(2, N)
+            Ny = N ÷ 2 + 1
+            figsize = (8, 8)
+        else
+            Nx = 3
+            Ny = N ÷ 3 + 1
+            figsize = (8, 8)
         end
 
-        # Remove unused axes
-        idx = 0
-        for ax in axes
-            idx += 1
-            if idx > N
-                plt.delaxes(ax)
+        if !(Nx == 1 && Ny == 1)
+            (fig, axes) = plt.subplots(Ny, Nx, figsize=figsize, sharex=true, sharey=true)
+            idx = 0
+            for ax in axes
+                idx += 1
+                if idx > N
+                    break
+                else
+                    ax.bar(levels[idx], partition_levels[idx], zorder=2)
+                    ax.set(title=titles[idx])
+                    ax.grid(true, which="major", axis="y", zorder=0)
+                    ax.tick_params(labelbottom=true)
+                end
             end
+        
+            for ax in axes[:,1]
+                ax.set(ylabel="Mean number of actors")
+            end
+            for ax in axes[end, :]
+                ax.set(xlabel=" Cascade level")
+                left, right = ax.get_xlim()
+                xticks = ceil(left):floor(right)
+                ax.set(xticks=xticks)
+            end
+
+            # Remove unused axes
+            idx = 0
+            for ax in axes
+                idx += 1
+                if idx > N
+                    plt.delaxes(ax)
+                end
+            end
+
+            if save
+                fig.savefig(filename, bbox_inches="tight", dpi=400)
+            end
+            return plt.gcf()
+        
+        # In case we split by partition but the partition is a unique value
+        else
+            plt.figure()
+            plt.bar(levels[1], partition_levels[1], zorder=2)
+            plt.xlabel("Level")
+            plt.ylabel("Mean number of actors")
+            plt.grid(true, which="major", axis="y", zorder=0)
+            if save
+                plt.savefig(filename, bbox_inches="tight", dpi=400)
+            end
+            return plt.gcf()
         end
 
-        plt.gcf()
-    
     else
         plt.figure()
-        plt.bar(levels[1], partition_levels[1])
-        plt.title(titles[1])
+        plt.bar(levels, partition_levels, zorder=2)
         plt.xlabel("Level")
         plt.ylabel("Mean number of actors")
-        plt.gcf()
+        plt.grid(true, which="major", axis="y", zorder=0)
+        if save
+            plt.savefig(filename, bbox_inches="tight", dpi=400)
+        end
+        return plt.gcf()
     end
 end
+
 
 
 #=
@@ -133,7 +170,7 @@ end
 """
 Plot the number of appearance of each actor in the dataset as a barplot. 
 """
-function actor_frequency(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
+function plot_actor_frequency(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -170,7 +207,7 @@ end
 """
 Plot the number of appearance of each action in the dataset as a barplot. 
 """
-function action_frequency(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
+function plot_action_frequency(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -200,29 +237,38 @@ function action_frequency(df::DataFrame; split_by_partition::Bool = true, log::B
     if split_by_partition
 
         N = length(counts)
-        if N <= 4
+        if N == 1
+            Nx = 1
+            Ny = 1
+        elseif N == 2
+            Nx = 2
+            Ny = 1
+            figsize = (8, 4)
+        elseif N <= 4
             Nx = min(2, N)
             Ny = N ÷ 2 + 1
+            figsize = (8, 8)
         else
             Nx = 3
             Ny = N ÷ 3 + 1
+            figsize = (8, 8)
         end
 
-        fig = nothing
         if !(Nx == 1 && Ny == 1)
-            (fig, axes) = plt.subplots(Nx, Ny, figsize=(8,8), sharex=true, sharey=true)
+            (fig, axes) = plt.subplots(Ny, Nx, figsize=figsize, sharex=true, sharey=true)
             idx = 0
             for ax in axes
                 idx += 1
                 if idx > N
                     break
                 else
-                    ax.bar(actions[idx], counts[idx])
+                    ax.bar(actions[idx], counts[idx], zorder=2)
                     ax.set(title=partitions[idx])
-                    ax.grid(true, which="major", axis="y")
+                    ax.grid(true, which="major", axis="y", zorder=0)
                     ax.tick_params(labelbottom=true)
                     if log
                         ax.set(yscale="log")
+                        ax.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
                     end
                 end
             end
@@ -244,18 +290,20 @@ function action_frequency(df::DataFrame; split_by_partition::Bool = true, log::B
             end
 
             if save
-                plt.savefig(filename, bbox_inches="tight", dpi=400)
+                fig.savefig(filename, bbox_inches="tight", dpi=400)
             end
             return plt.gcf()
 
+        # In case we split by partition but the partition is a unique value
         else
             plt.figure()
-            plt.bar(actions, counts)
+            plt.bar(actions, counts, zorder=2)
             plt.xlabel("Actions")
             plt.ylabel("Number of tweets per action")
-            plt.grid(true, which="major", axis="y")
+            plt.grid(true, which="major", axis="y", zorder=0)
             if log
                 plt.yscale("log")
+                plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
             end
             if save
                 plt.savefig(filename, bbox_inches="tight", dpi=400)
@@ -265,12 +313,13 @@ function action_frequency(df::DataFrame; split_by_partition::Bool = true, log::B
 
     else
         plt.figure()
-        plt.bar(actions, counts)
+        plt.bar(actions, counts, zorder=2)
         plt.xlabel("Actions")
         plt.ylabel("Number of tweets per action")
-        plt.grid(true, which="major", axis="y")
+        plt.grid(true, which="major", axis="y", zorder=0)
         if log
             plt.yscale("log")
+            plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
         end
         if save
             plt.savefig(filename, bbox_inches="tight", dpi=400)
@@ -279,6 +328,66 @@ function action_frequency(df::DataFrame; split_by_partition::Bool = true, log::B
     end
 
 end
+
+
+"""
+Plot the number of appearance of each action in the dataset as a barplot. 
+"""
+function plot_action_frequency_v2(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
+
+    if save && isnothing(filename)
+        throw(ArgumentError("You must provide a filename if you want to save the figure."))
+    end
+
+    if split_by_partition
+        countmaps = combine(groupby(df, "partition"), "action" => countmap => "countmap")
+        partitions = countmaps."partition"
+        counts = collect.(values.(countmaps."countmap"))
+        actions = collect.(keys.(countmaps."countmap"))
+        # Sort to ensure that we get the same ordering of the actions each time
+        for i in 1:length(counts)
+            sorting = sortperm(actions[i])
+            counts[i] = counts[i][sorting]
+            actions[i] = actions[i][sorting]
+        end
+    else
+        countmaps = countmap(df."action")    
+        counts = collect(values(countmaps))
+        actions = collect(keys(countmaps))
+        # sort to be coherent with the case when we split by partition
+        sorting = sortperm(actions)
+        counts = counts[sorting]
+        actions = actions[sorting]
+    end
+
+    if split_by_partition
+        barWidth = 0.25
+        N = length(counts)
+        pos = []
+        push!(pos, collect(1:N))
+        for i = 2:N
+            push!(pos, [x + barWidth for x in pos[i-1]])
+        end
+
+        plt.figure()
+        for i = 1:N
+            plt.bar(pos[i], counts[i], label=partitions[i], width=barWidth, zorder=2)
+        end
+        plt.xticks(pos[2], actions)
+        plt.legend()
+        plt.grid(true, which="major", axis="y", zorder=0)
+        if log
+            plt.yscale("log")
+            plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
+        end
+        if save
+            plt.savefig(filename, bbox_inches="tight", dpi=400)
+        end
+
+        return plt.gcf()
+    end
+end
+
 
 
 """
@@ -292,7 +401,7 @@ normalize: whether to normalize the wordcloud (setting text size based on the lo
 save: whether to save the wordcloud  
 filename: filename for saving the wordcloud if save is true  
 """
-function actor_wordcloud(df::DataFrame; by_::String = "follower_count", reduc::Function = mean, Nactor::Int = 300, normalize::Bool = true,
+function plot_actor_wordcloud(df::DataFrame; by_::String = "follower_count", reduc::Function = mean, Nactor::Int = 300, normalize::Bool = true,
     save::Bool = false, filename = nothing)
 
     if save && isnothing(filename)

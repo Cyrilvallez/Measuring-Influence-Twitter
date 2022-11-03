@@ -13,11 +13,18 @@ begin
 		df.partition = ["Full dataset" for i = 1:length(df[:,1])]
 		return df
 	end
+
+	function event(df)
+		decide = x -> x > Date(2022) ? "No event" : "COP26"
+		df.partition = decide.(df."created_at")
+		return df
+	end
 end
 
 partition_options = [ 
 	sentiment,
-	no_partition
+	no_partition,
+	event
 ]
 
 ## Actor Agregators
@@ -71,12 +78,18 @@ begin
 		return df
 	end
 
+	function username(df)
+		df."actor" = df."username"
+		return df
+	end
+
 end
 
 actor_options = [
 	author_first_letter,
 	country,
-	follower_count
+	follower_count,
+	username
 ]
 
 ## Action Labeler

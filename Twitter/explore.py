@@ -12,9 +12,11 @@ import time
 
 import process
 
+#%%
 # filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_test.json'
 # filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/cop26_whole_period.json'
-filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_processed.json'
+# filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_processed.json'
+filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_cop26_processed.json'
 
 t0 = time.time()
 df = pd.read_json(filename, lines=True, dtype=object)
@@ -28,6 +30,7 @@ df['full_urls'] = df.apply(lambda x: [domain + '.' + suffix for domain, suffix i
 news = '../Data/news_table_clean.csv'
 news = pd.read_csv(news)
 
+#%%
 
 def isin(urls, news_outlet):
     for url in urls:
@@ -117,14 +120,8 @@ test = pd.DataFrame({'A': [float('nan'), 2, 3]})
 test.to_json('test.json', orient="records", lines=True)
 
 
-#%%
 
-a = np.random.normal(scale=4, size=10000)
-
-plt.figure()
-# plt.violinplot(a, showextrema=False, bw_method='scott')
-plt.boxplot(a)
-plt.violinplot(a, showextrema=False, bw_method='scott')
-plt.show()
-
-
+        
+        
+        
+        

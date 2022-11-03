@@ -16,7 +16,7 @@ end
 
 # ╔═╡ 1e33f69e-247c-11ed-07ff-e9204ff08266
 begin
-	using CSV, DataFrames, TimeSeries, DataStructures, PlutoUI,  Clustering, GraphPlot, Graphs, URIs
+	using CSV, DataFrames, TimeSeries, DataStructures, PlutoUI,  Clustering, GraphPlot, Graphs, URIs, Colors
 	using StatsBase: maximum, minimum, median, mean
 	using WordCloud
 	import PyPlot as plt
@@ -30,46 +30,36 @@ end;
 
 # ╔═╡ e8ebe45d-1e7d-433c-93cd-50407798e06e
 begin
-	#md"""
-	#Select the data file (defaults to ExampleBWData.csv):\
-	#$(@bind datafile FilePicker())
-	#"""
 	datafolder = "../../Data/Twitter/"
-	
+
 	md"""
-	Select all the data files :
+	## Load the data
+	
+	Select all the data files you want to use :
 	$(@bind datafiles MultiSelect([file for file in readdir(datafolder) if occursin("processed.json", file)]))
 	"""
 end
 
-# ╔═╡ 6f95f316-fd7b-47ab-a2e5-eb4b3c621673
+# ╔═╡ 7c344844-5e28-4d10-850b-10697ea64c68
 begin
-	#if isnothing(datafiles)
+	
 	if isempty(datafiles)
 		data = load_json(datafolder * "all_links_processed.json")
 	else
-		#data = CSV.read(datafile["data"], DataFrame; header=7);
 		frames = [load_json(datafolder * file) for file in datafiles]
 		data = vcat(frames...)
 	end
 
 	data = data[.~ismissing.(data."urls"), :]
-
-	#=
-	new_row = DataFrame(id = "0006", author_id = "6", username = "éCyril06", 			created_at 	= "2021-10-31T00:09:04.000Z", lang = "en", text = "test climate 	change", 		original_text = "test climate change",
-		hashtags = missing, category = "['tweeted']", URLs = "['https://www.cnn.com/test']", domain = "['cnn']", domain_suffix = "['com']", country = missing, country_code = missing, sentiment = "neutral")
-	new_row2 = DataFrame(id = "0006", author_id = "6", username = "éCyril06", 			created_at 	= "2021-11-01T00:13:24.000Z", lang = "en", text = "test climate 	change", 		original_text = "test climate change",
-		hashtags = missing, category = "['tweeted']", URLs = "['https://www.cnn.com/test']", domain = "['cnn']", domain_suffix = "['com']", country = missing, country_code = missing, sentiment = "neutral")
-
-	append!(data, new_row)
-	append!(data, new_row2)
-	=#
 	
-	#clean_dates = x -> floor(DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS"), Dates.Minute(5));
-	clean_dates = x -> floor(DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS"), Dates.Hour(5));
-	#clean_dates = x -> floor(DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS"), Dates.Day(2));
-	data.time = clean_dates.(data."created_at");
+	to_datetime = x -> DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS")
+	data."created_at" = to_datetime.(data."created_at")
 
+end;
+
+# ╔═╡ e24ba873-cbb3-4823-be27-e9dfb2d8db89
+begin
+		
 	md"""
 	## Defining Investigation Scope
 	
@@ -82,10 +72,91 @@ begin
 	"""
 end
 
-
-# ╔═╡ ab19705f-f72d-45a5-b77b-75ee4450e647
+# ╔═╡ 7286c17d-87e2-44a1-8a31-ad0d77e24838
 begin
-	df = data |> part_fun |> action_fun |> actor_fun |> x->sort(x,:time)
+
+	df = data |> part_fun |> action_fun |> actor_fun
+
+	md""" 
+	The data is now pre-processed.
+	"""
+end
+
+# ╔═╡ 30c0bbd9-0f54-4438-9e4c-464beac97c1e
+md"""
+## Some statistics on the Dataset :
+
+The dataset consists of $(length(df."username")) tweets, from $(length(unique(df."actor"))) unique actors. The tweets are split in
+$(length(unique(df."partition"))) different partitions.
+
+Here is the number of tweets per actors, per partition :
+"""
+
+# ╔═╡ d6223bf9-d771-48e6-ab79-6190cc812d6a
+begin
+	plot_actor_frequency(df)
+end
+
+# ╔═╡ 7ba3305e-d040-4caf-984d-b32c4062a91b
+md"""
+Here, the actors with the most followers are presented. Their size depends on 
+the log of their number of followers.
+"""
+
+# ╔═╡ cf940b57-849f-4976-920f-37acc38abc97
+begin
+	plot_actor_wordcloud(df, Nactor=300)
+end
+
+# ╔═╡ 91772531-105c-4ce8-aad3-5f3bd2b5b83c
+md"""
+	Here we show the number of tweets by action, per partition.
+	"""
+
+# ╔═╡ 9326b201-85c7-4aaa-8df3-2bd9eec76d6e
+begin
+	plot_action_frequency(df)
+end
+
+# ╔═╡ 80891328-ab47-4b56-a482-ec35cb763add
+begin
+	function time_input(directions::Vector{String})
+	
+		return PlutoUI.combine() do Child
+		
+			inputs = [
+				md""" $(directions[1]): $(
+				Child(directions[1], Slider(0:10, default=5, show_value=true)))
+				""",
+				md""" $(directions[2]): $(
+				Child(directions[2], Slider(0:5:60, default=0, show_value=true)))
+				"""
+		]
+		
+		md"""
+		Choose the time resolution to construct the time series:
+		$(inputs)
+		"""
+		end
+	end
+	
+	md"""
+	## Now, in term of influence
+	
+	$(@bind time time_input(["Hours", "Minutes"]))
+	"""
+end
+
+# ╔═╡ a7d3259b-f540-4e63-bd80-002087535434
+begin
+	total_min = time[1]*60 + time[2]
+	
+	clean_dates = x -> floor(x, Dates.Minute(total_min))
+
+	# Set the time column and sort according to it (inplace)
+	df.time = clean_dates.(df."created_at")
+	sort!(df,:time)
+	
 	
 	tsg = TimeSeriesGenerator(:actor, :action, :partition)
 	time_series = observe(df, tsg)
@@ -93,19 +164,18 @@ begin
 	ig = InfluenceGrapher(unique(df[!, tsg.action_col]))
 	influence_graph = observe(time_series, ig)
 
-	edgeTypes = push!([string(n1," to ", n2) for n1 in unique(df[!, tsg.action_col]) for n2 in unique(df[!, tsg.action_col])], "Any Edge");
+	edgeTypes = push!([string(n1," to ", n2) for n1 in unique(df[!, tsg.action_col]) for n2 in unique(df[!, tsg.action_col])], "Any Edge")
 
 	md"""
-	Choose the transfer entropy value cuttoff value (above which we will consider influence to occur) and the type of edge to plot between actors:\
+	Choose the transfer entropy cuttoff value (above which we will consider influence to occur) and the type of edge to plot between actors:  
+	
 	Cuttoff:   $(@bind cuttoff Slider(0:0.01:4, default=0.5, show_value=true))\
 	Edge type: $(@bind et Slider(edgeTypes, show_value=true, default="Any Edge"))\
-
 	
 	Choose the partition to look at:
 	$(@bind part Slider(unique(df[!,tsg.part_col]), show_value=true))
 	"""
 end
-
 
 # ╔═╡ 2f95e8f5-7a66-4134-894d-9b4a05cc8006
 begin
@@ -133,9 +203,15 @@ begin
 		PlotlyJS.plot(map_plot(df)...)
 	# In this case we plot a simple graph of the actors
 	else
-		gplot(g, xs, ys, nodelabel=unique(df.actor))
+		gplot(g, xs, ys, nodelabel=unique(df.actor), nodelabelc=colorant"white",
+		NODESIZE=0.02, nodelabeldist=5)
 	end
 end
+
+# ╔═╡ 3906fdb1-856c-4e39-af2f-83e67960d68f
+md"""
+Here are the influence cascades :
+"""
 
 # ╔═╡ f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 begin
@@ -160,36 +236,47 @@ end
 
 # ╔═╡ 7defe873-ab21-429d-becc-872af5cf3ec1
 begin
-	[PlutoPlotly.plot(plot_cascade_sankey(
-	influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node1, unique(df[!, tsg.actor_col])[influencers])],
-	unique(df[!, tsg.action_col]))...),
+	if isempty(infl)
+		nothing
+	elseif length(infl) == 1
+		PlutoPlotly.plot(plot_cascade_sankey(
+		influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==infl[1], unique(df[!, tsg.actor_col])[influencers])],
+		unique(df[!, tsg.action_col]))...)
+	else
+		[PlutoPlotly.plot(plot_cascade_sankey(
+		influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node1, unique(df[!, tsg.actor_col])[influencers])],
+		unique(df[!, tsg.action_col]))...),
 		
-	PlutoPlotly.plot(plot_cascade_sankey(
-	influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node2, unique(df[!, tsg.actor_col])[influencers])],
-	unique(df[!, tsg.action_col]))...)
-	]
+		PlutoPlotly.plot(plot_cascade_sankey(
+		influence_cascades[findfirst(x->x==part,unique(df[!, tsg.part_col]))][findfirst(x->x==influencer_node2, unique(df[!, tsg.actor_col])[influencers])],
+		unique(df[!, tsg.action_col]))...)
+		]
+	end
 end
 
 # ╔═╡ 6847306d-fd38-4f37-81a9-604d03b57ff9
-md"""Some statistics on the influence cascades for each partitions"""
+md"""
+## Some statistics on the influence cascades
+
+Here is the mean number of actors involved at each level of the cascades,
+per partition :
+"""
 
 # ╔═╡ d478ea37-41dd-40a2-ba69-f40927b3aaf8
-plot_actors_per_level(influence_cascades, unique(df[!,:partition]))
-
-# ╔═╡ 3e7f36e5-b526-4191-9ba3-0bfeda4801db
-actor_frequency(df)
-
-# ╔═╡ fdcd04e4-c0ee-4580-9913-e8667680f595
-action_frequency(df)
-
-# ╔═╡ 1953d369-7120-4a6c-9bcf-1e6dcfff1b33
-actor_wordcloud(df, Nactor=300)
+begin
+	if isempty(infl)
+		nothing
+	else
+		plot_actors_per_level(influence_cascades, df)
+	end
+end
 
 # ╔═╡ 00000000-0000-0000-0000-000000000001
 PLUTO_PROJECT_TOML_CONTENTS = """
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 Clustering = "aaaa29a8-35af-508c-8bc3-b662a17a0fe5"
+Colors = "5ae59095-9a9b-59fe-a467-6f913c188581"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 GraphPlot = "a2cc645c-3eea-5389-862e-a155d0052231"
@@ -207,6 +294,7 @@ WordCloud = "6385f0a0-cb03-45b6-9089-4e0acc74b26b"
 [compat]
 CSV = "~0.10.4"
 Clustering = "~0.14.3"
+Colors = "~0.12.8"
 DataFrames = "~1.3.6"
 DataStructures = "~0.18.13"
 GraphPlot = "~0.5.2"
@@ -228,7 +316,7 @@ PLUTO_MANIFEST_TOML_CONTENTS = """
 
 julia_version = "1.8.1"
 manifest_format = "2.0"
-project_hash = "9b2885c634115321389da2d553e0cf36d8486ea5"
+project_hash = "7bcbdccfa0b7d7ef362edbab3fe0ddf66768ea50"
 
 [[deps.AbstractFFTs]]
 deps = ["ChainRulesCore", "LinearAlgebra"]
@@ -1323,16 +1411,23 @@ version = "3.5.0+0"
 
 # ╔═╡ Cell order:
 # ╟─1e33f69e-247c-11ed-07ff-e9204ff08266
-# ╠═e8ebe45d-1e7d-433c-93cd-50407798e06e
-# ╟─6f95f316-fd7b-47ab-a2e5-eb4b3c621673
-# ╟─ab19705f-f72d-45a5-b77b-75ee4450e647
+# ╟─e8ebe45d-1e7d-433c-93cd-50407798e06e
+# ╟─7c344844-5e28-4d10-850b-10697ea64c68
+# ╟─e24ba873-cbb3-4823-be27-e9dfb2d8db89
+# ╟─7286c17d-87e2-44a1-8a31-ad0d77e24838
+# ╟─30c0bbd9-0f54-4438-9e4c-464beac97c1e
+# ╟─d6223bf9-d771-48e6-ab79-6190cc812d6a
+# ╟─7ba3305e-d040-4caf-984d-b32c4062a91b
+# ╟─cf940b57-849f-4976-920f-37acc38abc97
+# ╟─91772531-105c-4ce8-aad3-5f3bd2b5b83c
+# ╟─9326b201-85c7-4aaa-8df3-2bd9eec76d6e
+# ╟─80891328-ab47-4b56-a482-ec35cb763add
+# ╟─a7d3259b-f540-4e63-bd80-002087535434
 # ╟─2f95e8f5-7a66-4134-894d-9b4a05cc8006
+# ╟─3906fdb1-856c-4e39-af2f-83e67960d68f
 # ╟─f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 # ╟─7defe873-ab21-429d-becc-872af5cf3ec1
 # ╟─6847306d-fd38-4f37-81a9-604d03b57ff9
-# ╠═d478ea37-41dd-40a2-ba69-f40927b3aaf8
-# ╠═3e7f36e5-b526-4191-9ba3-0bfeda4801db
-# ╠═fdcd04e4-c0ee-4580-9913-e8667680f595
-# ╠═1953d369-7120-4a6c-9bcf-1e6dcfff1b33
+# ╟─d478ea37-41dd-40a2-ba69-f40927b3aaf8
 # ╟─00000000-0000-0000-0000-000000000001
 # ╟─00000000-0000-0000-0000-000000000002

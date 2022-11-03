@@ -237,7 +237,11 @@ def get_urls(tweet: dict, category: list[str], try_expand: bool = True) -> list[
     if try_expand:
         for i, url in enumerate(urls):
             if urlexpander.is_short(url) or 'act.gp' in url:
-                urls[i] = urlexpander.expand(url)
+                try:
+                    urls[i] = urlexpander.expand(url)
+                except:
+                    # In this case we do nothing
+                    pass
                 
     if len(urls) == 0:
         urls = float('nan')
