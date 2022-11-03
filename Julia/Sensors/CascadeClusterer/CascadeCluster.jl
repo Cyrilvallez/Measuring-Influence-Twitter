@@ -1,7 +1,8 @@
 include("../InfluenceCascadeGenerator/InfluenceCascadeGenerator.jl")
 using DataFrames
+using Clustering
 
-mutable struct CascadeClusterer  <: Sensor
+struct CascadeClusterer  
     embed
     cluster
 end
@@ -47,9 +48,20 @@ function stupid_embedding(ic::InfluenceCascade; cuttoff=1)
     return layer_lens
 end
 
+
+
 function observe(x::Vector{InfluenceCascade}, cc::CascadeClusterer)
     vecs = cc.embed.(x)
     clusters = cc.cluster(vecs)
     return clusters
+end
+
+
+## Cascade Clustering Methods
+begin
+	function dbscan_clusterer(x; eps=0.005, minpts=10)
+		x = transpose(reshape(vcat(transpose.(x)...),(length(x), length(x[1]))))
+		return [c.core_indices for c in Clustering.dbscan(x, eps, min_cluster_size=minpts)]
+	end
 end
 

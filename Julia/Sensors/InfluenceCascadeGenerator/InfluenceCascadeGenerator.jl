@@ -1,9 +1,13 @@
 using DataStructures
-using Graphs, GraphPlot
 using PlotlyBase
 
-mutable struct InfluenceCascadeGenerator  <: Sensor
+struct InfluenceCascadeGenerator 
     cuttoff::Float64
+    normalize::Bool
+end
+
+function InfluenceCascadeGenerator(cuttoff::Float64)
+    return InfluenceCascadeGenerator(cuttoff, true)
 end
 
 
@@ -21,8 +25,10 @@ struct InfluenceCascade
 end
 
 
+"""
+Normalize the cascade by its total influence values
+"""
 function normalize_cascade(cascade::InfluenceCascade)
-    # Normalize the cascades by their total influence values
     total_influence = sum(collect(values(cascade.cascade)))
     M = size(total_influence, 1)
 
@@ -32,12 +38,11 @@ function normalize_cascade(cascade::InfluenceCascade)
     end
 end
 
-"""
-    observe(data::Matrix{Matrix}, icg::InfluenceCascadeGenerator, normalize::Bool=true)
 
+"""
 Return the influence cascades from the adjacency matrix containing the transfer entropy per actions.
 """
-function observe(data::Matrix{Matrix}, icg::InfluenceCascadeGenerator, normalize::Bool=true)
+function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
 
     influencers = Vector{Int}()
     for (j, col) in enumerate(eachcol(data))
@@ -114,11 +119,11 @@ function observe(data::Matrix{Matrix}, icg::InfluenceCascadeGenerator, normalize
         # add number of actors in the last level
         push!(actors_per_level, length(unique([i[2] for i in actor_indices["$level => $(level+1)"]])))
         # Create the influence_cascade objects and add it to the list
-        influence_cascade = InfluenceCascade(cascade, actor_indices, actors_per_level, influencer, normalize)
+        influence_cascade = InfluenceCascade(cascade, actor_indices, actors_per_level, influencer, icg.normalize)
         push!(influence_cascades, influence_cascade)
     end
     
-    if normalize
+    if icg.normalize
         # Normalize the cascades by their total influence values
         for cascade in influence_cascades
             normalize_cascade(cascade)
@@ -129,6 +134,9 @@ function observe(data::Matrix{Matrix}, icg::InfluenceCascadeGenerator, normalize
 end
 
 
+"""
+Plot an influence cascade as a Sankey diagram.
+"""
 function plot_cascade_sankey(influence_cascade::InfluenceCascade, actions)
     # Bank of color because PlutoPlotly does not support the `colorant"blue"` colors in
     # Pluto notebooks

@@ -1,20 +1,19 @@
 using PlotlyBase
+using Graphs, SimpleWeightedGraphs, GraphPlot
+using Colors
 
 #using CausalityTools
 include("../../entropy.jl")
 
 
-mutable struct InfluenceGrapher  <: Sensor
-    # premise is that each sensor instantiation will be designed to 
-    # split itself by some action definition and actor definition
-    # the partition is assumed to be already given (eg, by narrative)
+struct InfluenceGrapher 
     transfer_entropy::Function
 end
 
 
-function InfluenceGrapher(transfer_entropy_func::Function = TE)
-    #InfluenceGrapher((x,y)->transferentropy(x,y, Kraskov()), cuttoff, actiontypes)
-    InfluenceGrapher(transfer_entropy_func)
+# Default constructor without argument
+function InfluenceGrapher()
+    return InfluenceGrapher(TE)
 end
 
 
@@ -64,11 +63,25 @@ end
 
 
 
-function print_graph(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75))
-    a = simplifier.(adj)
-    g = SimpleDiGraph(a)
-    gplot(g)
-    return g
+function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame; simplifier = x->(maximum(x)>0.75))
+
+    # Actors are represented in the order they appear in unique(df."actor") in the adjacency matrix
+    node_labels = unique(df."actor")
+
+    # reduce the adjacency matrix containing edge matrices to simple adjacency matrix depending on which 
+    # connection we are interested in in the edge matrices
+    reduced_adjacency = simplifier.(adjacency)
+    g = SimpleWeightedDiGraph(reduced_adjacency)
+    # remove unconnected nodes from the drawing of the graph
+    outdegrees = outdegree(g)
+    indegrees = indegree(g)
+    connected_vertices = [i for i in vertices(g) if (outdegrees[i] > 0 && indegrees[i] > 0)]
+    connected_graph, vmap = induced_subgraph(g, connected_vertices)
+    connected_vertices_labels = node_labels[vmap]
+    # Plot only connected nodes
+    #gplot(connected_graph, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
+    return connected_graph, connected_vertices_labels
+
 end
 
 function influence_layout(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75))

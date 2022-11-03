@@ -1,13 +1,14 @@
 using DataFrames
 
 
-mutable struct TimeSeriesGenerator  <: Sensor
-    # premise is that each sensor instantiation will be designed to 
-    # split itself by some action definition and actor definition
-    # the partition is assumed to be already given (eg, by narrative)
+struct TimeSeriesGenerator
     actor_col::Union{String, Symbol}
     action_col::Union{String, Symbol}
     part_col::Union{String, Symbol}
+end
+
+function TimeSeriesGenerator()
+    return TimeSeriesGenerator(:actor, :action, :partition)
 end
 
 
