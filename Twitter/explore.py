@@ -119,9 +119,25 @@ foo = df[pd.isnull(df['urls'])]
 test = pd.DataFrame({'A': [float('nan'), 2, 3]})
 test.to_json('test.json', orient="records", lines=True)
 
+#%%
 
+from tqdm import tqdm
 
-        
-        
+N = int(1e8)
+
+for i in tqdm(range(5), desc='test'):
+    for j in tqdm(range(N), leave=False):
+        z = i+1
+    
+    
+    
+#%%
+import time
+filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/COP26/2021-10-31T00-00_to_2021-11-04T00-00.json'
+t0 = time.time()
+for i in range(10):
+    with open(filename, 'r') as file: 
+        N_lines = sum(1 for _ in file) 
+dt2 = (time.time() - t0)/10
         
         

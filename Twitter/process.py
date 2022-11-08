@@ -12,6 +12,7 @@ import urlexpander
 import tldextract
 import os
 import argparse
+from tqdm import tqdm
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 ANALYZER = SentimentIntensityAnalyzer()
@@ -93,7 +94,11 @@ def get_country(tweet: dict) -> str:
 
     """
     
-    return tweet['geo']['country'] if 'geo' in tweet.keys() else float('nan')
+    if 'geo' in tweet.keys():
+        if 'country' in tweet['geo'].keys():
+            return tweet['geo']['country']
+    
+    return float('nan')
 
 
 def get_country_code(tweet: dict) -> str:
@@ -112,7 +117,11 @@ def get_country_code(tweet: dict) -> str:
 
     """
     
-    return tweet['geo']['country_code'] if 'geo' in tweet.keys() else float('nan') 
+    if 'geo' in tweet.keys():
+        if 'country_code' in tweet['geo'].keys():
+            return tweet['geo']['country_code']
+    
+    return float('nan') 
 
 
 def get_tweet_category(tweet: dict) -> list[str]:
@@ -286,7 +295,7 @@ def get_hashtags(tweet: dict, category: list[str]) -> list[str]:
     return hashtags
 
 
-def get_domain_and_suffix(urls: list[str]) -> tuple[list[str], list[str]]:
+def get_domain_and_suffix(urls: list[str]) -> list[str]:
     """
     Returns the domain and domain suffix of URLs.
 
@@ -298,21 +307,19 @@ def get_domain_and_suffix(urls: list[str]) -> tuple[list[str], list[str]]:
     Returns
     -------
     domain : list[str]
-        The domain associated with each URL.
-    domain_suffix : list[str]
-        The domain suffix associated with each URL.
+        The domain and suffix associated with each URL.
 
     """
 
     # If it is float, this means that it's nan thus we return nan as well
     if type(urls) == float:
-        return float('nan'), float('nan')
+        return float('nan')
     
     parsing = [tldextract.extract(url) for url in urls]
-    domain = [url.domain for url in parsing]
-    domain_suffix = [url.suffix for url in parsing]
+    # Join the domain and suffix into a single string
+    domain = ['.'.join(part for part in url[1:] if part) for url in parsing]
     
-    return domain, domain_suffix
+    return domain
 
 
 
@@ -331,7 +338,7 @@ ATTRIBUTES_TO_PRESERVE = [
 
 
 def process_tweets(filename: str, to_df: bool = True, try_expand: bool = True,
-                skiprows: int = 2):
+                skiprows: int = 2, keep_bar: bool = True):
     """
     Load the tweets from file, and process them to conserve only the interesting
     attributes.
@@ -350,6 +357,8 @@ def process_tweets(filename: str, to_df: bool = True, try_expand: bool = True,
         The number of lines to skip at the beginning of the file. This allows to discard
         lines containing the info on how the data was queried from Twitter. 
         The default is 2.
+    keep_bar : bool, optional
+        Whether to keep the tqdm bar at the end of iteration. The defaults is True.
     
     Returns
     -------
@@ -359,10 +368,15 @@ def process_tweets(filename: str, to_df: bool = True, try_expand: bool = True,
     """
     
     dics = []
+    
+    # small overhead (negligible compared to total time) but allows to get the
+    # number of lines to pass to tqdm
+    with open(filename, 'r') as file: 
+        N_lines = sum(1 for _ in file) 
 
     with open(filename, 'r') as file:
     
-        for i, line in enumerate(file):
+        for i, line in tqdm(enumerate(file), total=N_lines, leave=keep_bar):
 
             if i < skiprows:
                 continue
@@ -381,9 +395,7 @@ def process_tweets(filename: str, to_df: bool = True, try_expand: bool = True,
             dic['sentiment'] = get_sentiment(dic['original_text'])
             dic['urls'] = get_urls(tweet, dic['category'], try_expand)
             dic['hashtags'] = get_hashtags(tweet, dic['category'])
-            domains, suffixes = get_domain_and_suffix(dic['urls'])
-            dic['domain'] = domains
-            dic['domain_suffix'] = suffixes
+            dic['domain'] = get_domain_and_suffix(dic['urls'])
             
             dics.append(dic)
             
@@ -395,17 +407,17 @@ def process_tweets(filename: str, to_df: bool = True, try_expand: bool = True,
 
     
 
-def process_and_save_tweets(filename: str, try_expand: bool = True,
+def process_and_save_tweets(path: str, try_expand: bool = True,
                          skiprows: int = 2) -> None:
     
     """
-    Load the tweets from file, process them to conserve only the interesting
-    attributes, and save those processed tweets as json.
+    Load the tweets from the file or folder given in `path`, process them to
+    conserve only the interesting attributes, and save those processed tweets as json.
 
     Parameters
     ----------
-    filename : str
-        The path to the file.
+    path : str
+        The path to the file or folder.
     try_expand : bool, optional
         Whether to try to manually expand URLs that Twitter did not expand.
         This is a huge time bottleneck but allows to get more valid tweet to work
@@ -421,16 +433,37 @@ def process_and_save_tweets(filename: str, try_expand: bool = True,
 
     """
     
-    # Removes current extension and add `_processed.json` instead
-    new_filename = filename.rsplit('.', 1)[0] + '_processed.json'
-    if os.path.exists(new_filename):
-        raise ValueError(('It seems like this file was already processed. This '
-                          'would overwrite it.'))
+    if os.path.isdir(path):
+        if path[-1] == '/':
+            path = path[0:-1]
+        new_folder = path + '_processed/'
+        os.makedirs(new_folder, exist_ok=True)
+        files = os.listdir(path)
+        filenames = [path + '/' + file for file in files]
+        new_filenames = [new_folder + file for file in files]
+        # Loop over new filename to avoid overwriting some
+        for file in new_filenames:
+            if os.path.exists(file):
+                raise ValueError(('It seems like at least one file in this folder was '
+                                  'already processed. This would overwrite it.'))
+        for file, new_file in tqdm(zip(filenames, new_filenames), total=len(filenames), desc='Processed files'):
+            # process the tweets and create a dataframe to easily save them back
+            df = process_tweets(file, to_df=True, try_expand=try_expand,
+                                skiprows=skiprows, keep_bar=False)
+            df.to_json(new_file, orient="records", lines=True)
+        
+        
+    else:
+        # Removes current extension and add `_processed.json` instead
+        new_filename = path.rsplit('.', 1)[0] + '_processed.json'
+        if os.path.exists(new_filename):
+            raise ValueError(('It seems like this file was already processed. This '
+                              'would overwrite it.'))
 
-    # process the tweets and create a dataframe to easily save them back
-    df = process_tweets(filename, to_df=True, try_expand=try_expand,
-                     skiprows=skiprows)
-    df.to_json(new_filename, orient="records", lines=True)
+        # process the tweets and create a dataframe to easily save them back
+        df = process_tweets(path, to_df=True, try_expand=try_expand,
+                            skiprows=skiprows)
+        df.to_json(new_filename, orient="records", lines=True)
 
 
 

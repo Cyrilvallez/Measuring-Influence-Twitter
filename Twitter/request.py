@@ -7,7 +7,7 @@ Created on Wed Oct 12 15:51:35 2022
 """
 
 from twarc import Twarc2, expansions
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import argparse
 import utils
@@ -65,6 +65,8 @@ def make_query(filename: str, query: str, start_time: datetime,
             for tweet in result:
                 # write the json file with new line after each new dump
                 filehandle.write(f'{json.dumps(tweet)}\n')
+                
+    
              
 
 if __name__ == "__main__":
@@ -93,17 +95,23 @@ if __name__ == "__main__":
     max_pages = args.max_pages if args.max_pages != -1 else float('inf')
     print(f'The query you used is : \n{query}')
     
-    filename = utils.format_filename(filename)
+    # We split the time into periods of 4 days and save the API answer to a new file
+    # for each period to avoid huge files
+    time_intervals = utils.split_time_interval(start_time, end_time)
+    filenames = utils.format_filename(filename, time_intervals)
     
-    # We log the arguments at the beginning of the file
-    log = {'query_file': args.query, 'query': query, 'start_time': args.start_time.isoformat(sep=' '), \
-           'end_date': args.end_time.isoformat(sep=' '), 'max_per_page': max_per_page, \
+    for i in range(len(time_intervals)-1):
+        
+        # We log the arguments at the beginning of the file
+        log = {'query_file': args.query, 'query': query, 'start_time': time_intervals[i].isoformat(sep=' '), \
+           'end_date': time_intervals[i+1].isoformat(sep=' '), 'max_per_page': max_per_page, \
            'max_pages': max_pages}
         
-    with open(filename, 'w') as filehandle:
-        filehandle.write(f'{json.dumps(log)}\n\n')
+        with open(filenames[i], 'w') as filehandle:
+            filehandle.write(f'{json.dumps(log)}\n\n')
     
-    make_query(filename, query, start_time, end_time, max_per_page, max_pages)
+        make_query(filenames[i], query, time_intervals[i], time_intervals[i+1],
+                   max_per_page, max_pages)
     
     
     

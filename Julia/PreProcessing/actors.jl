@@ -2,7 +2,7 @@ using DataFrames
 
 
 """
-Defines actor as countries, using the country_code in the tweeets.
+Define actor as countries, using the country_code in the tweeets.
 """
 function country(df::DataFrame)
 	df = df[.!ismissing.(df."country_code"), :]
@@ -13,7 +13,7 @@ end
 
 
 """
-Defines actor using the number of followers of each individual in the dataset.  
+Define actor using the number of followers of each individual in the dataset.  
 The first N=500 individuals with most followers will be treated as individual actors,  
 while the other ones will be aggregated in bins of 10,000 people.
 """
@@ -58,7 +58,7 @@ end
 
 
 """
-Defines actor using the username in the tweets, thus every people in the dataset is a different actor.
+Define actor using the username in the tweets, thus every people in the dataset is a different actor.
 """
 function username(df::DataFrame)
 	df."actor" = df."username"

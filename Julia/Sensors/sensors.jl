@@ -20,6 +20,11 @@ function Pipeline(cuttoff::Float64)
     return Pipeline(tsg, ig, icg)
 end
 
+
+"""
+Execute all steps of at once : computation of the time series, influence graphs, and influence cascades.  
+Return only the influence graphs and influence cascades.
+"""
 function observe(df::DataFrame, pipeline::Pipeline)
 
     time_series = observe(df, pipeline.time_series_generator)

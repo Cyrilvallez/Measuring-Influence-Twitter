@@ -8,6 +8,7 @@ Created on Thu Oct 13 09:39:26 2022
 
 import os
 import yaml
+from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 
@@ -58,19 +59,60 @@ def load_query(query_path: str) -> str:
 
 
 
-def format_filename(filename: str, folder: str = '../Data/Twitter/',
-                    extension: str = '.json') -> str:
+def split_time_interval(start_time: datetime, end_time: datetime,
+                        time_interval: timedelta = timedelta(days=4)) -> list[datetime]:
     """
-    Format the original filename to meet the format.
+    Split a time interval into smaller intervals. This is useful to make multiple
+    queries instead of just one for large time interval that would result in
+    one huge file.
+
+    Parameters
+    ----------
+    start_time : datetime
+        Start of the interval.
+    end_time : datetime
+        End of the interval.
+    time_interval : timedelta, optional
+        The time delta to use to break the interval in smaller ones.
+        The default is timedelta(days=4).
+
+    Returns
+    -------
+    list[datetime]
+        List corresponding to all intervals.
+
+    """
+    
+    intervals = [start_time]
+    
+    if end_time - start_time > time_interval:
+        start = start_time
+        while start + time_interval < end_time:
+            intervals.append(start + time_interval)
+            start += time_interval
+            
+    intervals.append(end_time)
+    
+    return intervals
+    
+
+
+def format_filename(filename: str, time_intervals: list[datetime], 
+                    folder: str = '../Data/Twitter/', extension: str = '.json') -> list[str]:
+    """
+    Return a list of complete paths to the files we will create.
 
     Parameters
     ----------
     filename : str
         The filename for saving the file.
+    time_intervals : list[datetime]
+        Time intervals corresponding to the query dates, as returned by 
+        `split_time_intervals`.
     folder : str, optional
         Where to store the tweets. The default is '../Data/Twitter/'.
     extension : str, optional
-        The extension for saving the tweets. The default is '.txt'.
+        The extension for saving the tweets. The default is '.json'.
 
     Raises
     ------
@@ -79,19 +121,36 @@ def format_filename(filename: str, folder: str = '../Data/Twitter/',
 
     Returns
     -------
-    filename : str
-        The final formatted path.
+    filename : list[str]
+        List of all the final formatted paths.
 
     """
     
-    if '/' in filename:
-        raise ValueError('The filename name must not be a path. Please provide a name without any \'/\'.')
+    if '/' in filename or '.' in filename:
+        raise ValueError('Please provide a name without any \'.\' or \'/\'.')
+        
+    filenames = []
+        
+    # If we are going to write more than one file, create a folder as the filename
+    # and returns filenames as the time periods into this folder
+    if len(time_intervals) > 2:
+        # Creates folder if it does not already exists
+        os.makedirs(folder + filename, exist_ok=True)
+        for i in range(len(time_intervals)-1):
+            start = datetime.replace(time_intervals[i], tzinfo=None)
+            end = datetime.replace(time_intervals[i+1], tzinfo=None)
+            file = folder + filename + '/' + start.isoformat(timespec='minutes').replace(':', '-') + \
+                '_to_' + end.isoformat(timespec='minutes').replace(':', '-') + extension
+            if os.path.exists(file):
+                raise ValueError('A filename already exists with this name. Choose another one.')
+            filenames.append(file)
+            
+    else:
+        filenames.append(folder + filename + extension)
+        if os.path.exists(filenames[0]):
+            raise ValueError('A filename already exists with this name. Choose another one.')
     
-    filename = folder + filename + extension
-    if os.path.exists(filename):
-        raise ValueError('A filename already exists with this name. Choose another one.')
-    
-    return filename
+    return filenames
 
 
 
