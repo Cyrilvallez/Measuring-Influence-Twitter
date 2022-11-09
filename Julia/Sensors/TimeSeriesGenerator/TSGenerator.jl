@@ -13,10 +13,10 @@ end
 
 
 """
-Compute the time series for each actor and actions, inside each partition. The order of each is the natural order  
-they appear in the DataFrame (and as returned by unique(); e.g the first element times_series[1] correspond  
-to unique(data.partition)[1]). In the same way, the first actor in the first partition is the one returned 
-by unique(data.actor)[1]. Same goes for the actions.
+Compute the time series for each actor and actions, inside each partition. The order of each is the natural sorted order  
+(as returned by sort(unique()); e.g the first element times_series[1] correspond  
+to sort(unique(data.partition))[1]). In the same way, the first actor in the first partition is the one returned 
+by sort(unique(data.actor))[1]. Same goes for the actions.
 
 CAUTION : In order to get the time series correctly, we sort the DataFrame according to :time inplace. It will be modified.
 """
@@ -25,11 +25,12 @@ function observe(data::DataFrame, tsg::TimeSeriesGenerator)
     # We sort the dataframe in place ! It will be modified.
     sort!(data, :time)
 
-    # Compute unique values for all quantities
+    # Compute unique values for all quantities, and sort them to give a consistent ordering
+    # Note that time is already sorted since we sorted the dataframe
     times = unique(data.time)
-    actors = unique(data[!, tsg.actor_col])
-    actions = unique(data[!, tsg.action_col])
-    partitions = unique(data[!, tsg.part_col])
+    actors = sort(unique(data[!, tsg.actor_col]))
+    actions = sort(unique(data[!, tsg.action_col]))
+    partitions = sort(unique(data[!, tsg.part_col]))
 
     # Compute length of all unique values
     N_times = length(times)

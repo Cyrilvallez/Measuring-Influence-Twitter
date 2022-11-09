@@ -436,11 +436,11 @@ def process_and_save_tweets(path: str, try_expand: bool = True,
     if os.path.isdir(path):
         if path[-1] == '/':
             path = path[0:-1]
-        new_folder = path + '_processed/'
+        new_folder = path + '_processed'
         os.makedirs(new_folder, exist_ok=True)
-        files = os.listdir(path)
-        filenames = [path + '/' + file for file in files]
-        new_filenames = [new_folder + file for file in files]
+        files = [file for file in os.listdir(path) if not file.startswith('.')]
+        filenames = [os.path.join(path, file) for file in files]
+        new_filenames = [os.path.join(new_folder, file) for file in files]
         # Loop over new filename to avoid overwriting some
         for file in new_filenames:
             if os.path.exists(file):

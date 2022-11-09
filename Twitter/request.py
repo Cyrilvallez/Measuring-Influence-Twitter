@@ -7,7 +7,7 @@ Created on Wed Oct 12 15:51:35 2022
 """
 
 from twarc import Twarc2, expansions
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 import json
 import argparse
 import utils

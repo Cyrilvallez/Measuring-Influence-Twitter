@@ -137,7 +137,11 @@ end
 """
 Plot an influence cascade as a Sankey diagram.
 """
-function plot_cascade_sankey(influence_cascade::InfluenceCascade, actions)
+function plot_cascade_sankey(influence_cascade::InfluenceCascade, df::DataFrame)
+
+    # Actions are represented in the order they appear in sort(unique(df.action)) in the adjacency matrix
+    actions = sort(unique(df.action))
+
     # Bank of color because PlutoPlotly does not support the `colorant"blue"` colors in
     # Pluto notebooks
     color_bank = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b",

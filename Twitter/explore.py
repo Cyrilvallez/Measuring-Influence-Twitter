@@ -22,13 +22,26 @@ t0 = time.time()
 df = pd.read_json(filename, lines=True, dtype=object)
 dt = time.time() - t0
 
-df = df[pd.notnull(df['urls'])]
-df['full_urls'] = df.apply(lambda x: [domain + '.' + suffix for domain, suffix in zip(x['domain'], x['domain_suffix'])], axis=1)
+# df = df[pd.notnull(df['urls'])]
+# df['full_urls'] = df.apply(lambda x: [domain + '.' + suffix for domain, suffix in zip(x['domain'], x['domain_suffix'])], axis=1)
 
 #%%
 
 news = '../Data/news_table_clean.csv'
 news = pd.read_csv(news)
+
+
+#%%
+import os
+
+
+folder = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/COP26_processed/'
+files = [folder + file for file in os.listdir(folder) if not file.startswith('.')]
+
+tot = 0
+for file in files:
+    df = pd.read_json(file, lines=True, dtype=object)
+    tot += sum(df.memory_usage(deep=True)/1e9)
 
 #%%
 
@@ -140,4 +153,9 @@ for i in range(10):
         N_lines = sum(1 for _ in file) 
 dt2 = (time.time() - t0)/10
         
-        
+
+#%%
+print(__file__)
+
+
+

@@ -62,11 +62,13 @@ function observe(time_series::Vector{Vector{Matrix{Int}}}, ig::InfluenceGrapher)
 end
 
 
-
+"""
+Plot the graph corresponding to the adjacency matrix adjacency, which is being simplified by simplifier.
+"""
 function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame; simplifier = x->(maximum(x)>0.75))
 
-    # Actors are represented in the order they appear in unique(df."actor") in the adjacency matrix
-    node_labels = unique(df."actor")
+    # Actors are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
+    node_labels = sort(unique(df."actor"))
 
     # reduce the adjacency matrix containing edge matrices to simple adjacency matrix depending on which 
     # connection we are interested in in the edge matrices
@@ -79,10 +81,57 @@ function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame; simplifie
     connected_graph, vmap = induced_subgraph(g, connected_vertices)
     connected_vertices_labels = node_labels[vmap]
     # Plot only connected nodes
-    #gplot(connected_graph, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
-    return connected_graph, connected_vertices_labels
+    gplot(connected_graph, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
 
 end
+
+
+"""
+Plot the graph on a world map.
+"""
+function plot_graph_map(df::DataFrame)
+
+    iso_codes = sort(unique(df.actor))
+	indices = indexin(iso_codes, df.actor)
+	countries = df."Country"[indices]
+	traces = Vector{GenericTrace{Dict{Symbol, Any}}}()
+		
+	for (i, e) in enumerate(edges(g))
+    	trace = PlotlyBase.scattergeo(  
+	    	mode = "markers+lines",
+	    	locations = [iso_codes[src(e)], iso_codes[dst(e)]],
+	    	marker = PlotlyBase.attr(size = 8, color="blue"),
+			line = PlotlyBase.attr(color="red", width=1),
+			showlegend=false,
+			name = "",
+			hovertext = [countries[src(e)], countries[dst(e)]],
+		)
+    	push!(traces, trace)
+	end
+
+	layout = PlotlyBase.Layout(
+		title_text = "Influence graph (undirected)",
+    	showlegend = false,
+    	geo = PlotlyBase.attr(
+        	showland = true,
+        	showcountries = true,
+        	showocean = true,
+        	countrywidth = 0.5,
+        	#landcolor = "rgb(230, 145, 56)",
+        	#lakecolor = "rgb(0, 255, 255)",
+        	#oceancolor = "rgb(0, 255, 255)",
+			projection = PlotlyBase.attr(type = "natural earth"),
+			#scope = "africa"
+			),
+		#modebar = attr(remove = ["zoomOutGeo"]),
+		#dragmode = "pan"
+		)
+
+        return traces, layout
+        
+end
+
+
 
 function influence_layout(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75))
     graph = simplifier.(adj)
@@ -127,46 +176,4 @@ function influence_layout(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75)
     end
 
     return x_pos, y_pos, (1:length(x_pos))[influencers.&& .~no_influence]
-end
-
-
-function map_plot(df::DataFrame)
-
-    iso_codes = unique(df.actor)
-	indices = indexin(iso_codes, df.actor)
-	countries = df."Country"[indices]
-	traces = Vector{GenericTrace{Dict{Symbol, Any}}}()
-		
-	for (i, e) in enumerate(edges(g))
-    	trace = PlotlyBase.scattergeo(  
-	    	mode = "markers+lines",
-	    	locations = [iso_codes[src(e)], iso_codes[dst(e)]],
-	    	marker = PlotlyBase.attr(size = 8, color="blue"),
-			line = PlotlyBase.attr(color="red", width=1),
-			showlegend=false,
-			name = "",
-			hovertext = [countries[src(e)], countries[dst(e)]],
-		)
-    	push!(traces, trace)
-	end
-
-	layout = PlotlyBase.Layout(
-		title_text = "Influence graph (undirected)",
-    	showlegend = false,
-    	geo = PlotlyBase.attr(
-        	showland = true,
-        	showcountries = true,
-        	showocean = true,
-        	countrywidth = 0.5,
-        	#landcolor = "rgb(230, 145, 56)",
-        	#lakecolor = "rgb(0, 255, 255)",
-        	#oceancolor = "rgb(0, 255, 255)",
-			projection = PlotlyBase.attr(type = "natural earth"),
-			#scope = "africa"
-			),
-		#modebar = attr(remove = ["zoomOutGeo"]),
-		#dragmode = "pan"
-		)
-
-        return traces, layout
 end

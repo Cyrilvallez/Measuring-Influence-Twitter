@@ -12,30 +12,18 @@ NEWS_TABLE_PROCESSED = PROJECT_FOLDER * "/Data/news_table_clean.csv"
 
 """
 Return the TUFM classification from the news table.
-
-WARNING : Old version, works with ICE data but not Twitter climate data.
 """
 function trust_popularity_score_old(df::DataFrame)
 
-	score = CSV.read(NEWS_TABLE_RAW, DataFrame, header=1)
-	score = score[score."tufm_class" .!= "0", :]
-	# get host name from the expanded url
-	df."News host domain" = df."Expanded URLs" .|> x -> URI(x).host
+	news = CSV.read(NEWS_TABLE_PROCESSED, DataFrame, header=1)
+	df."full_domain" = [[domain[i] * "." * suffix[i] for i = 1:length(domain)] for (domain, suffix) in zip(df."domain", df."domain_suffix")]
 
-	# Match the source host name with those of the news outlet table
-	# It needs to be done this way since there are possible subdomain
-	# in the host name that cannot be removed with a general rule,
-	# thus we need to look for substrings instead of string equality
-	# e.g `www.cnn.com` and `info.cnn.com` must both match `cnn.com`
-    df."News domain" = isin.(df."News host domain", Ref(score."Domain"))
-
+	# Find score associated to urls contained in the news outlets
+    df.action = classify.(df."full_domain", Ref(news))
 	# remove news source not matching one of the source news table
-    df = df[.!ismissing.(df."News domain"), :]
-	# retrieve action from the table and explicitly convert to String
-	# because String3 is not valid later on
-	df.action = String.([score."tufm_class"[findfirst(domain .== score."Domain")] 
-		for domain in df."News domain"])
-
+    df = df[.!ismissing.(df.action), :]
+	# Remove the Union{missing, String}
+	df.action = String.(df.action)
 	return df
 end
 
@@ -53,8 +41,9 @@ function trust_score(df::DataFrame)
 	df.action = [ismissing(a) ? missing : a[1] for a in class]
 	# remove news source not matching one of the source news table
     df = df[.!ismissing.(df.action), :]
-	# Remove the Union{missing, String}
-	df.action = String.(df.action)
+
+	# convert to String
+	df.action = string.(df.action)
 	return df
 end
 
@@ -103,12 +92,12 @@ end
 
 
 """
-Return the tufm class of the first element of `urls` which is contained in `news_outlet`.
+Return the tufm class of the first element of `domains` which is contained in `news_outlet`.
 If there are none, returns `missing`.
 """
-function classify(urls::Vector{String}, news_outlet::DataFrame)
-    for url in urls
-		index = findfirst(url .== news_outlet."domain")
+function classify(domains::Vector, news_outlet::DataFrame)
+    for domain in domains
+		index = findfirst(domain .== news_outlet."domain")
         if !isnothing(index)
             return news_outlet."tufm_class"[index]
 		end
