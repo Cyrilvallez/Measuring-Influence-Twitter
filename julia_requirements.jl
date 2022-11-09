@@ -32,6 +32,7 @@ for (package, version) in packages_with_version
     if package == "PyPlot"
         ENV["PYTHON"] = ""
     end
+    print("\n\n\nInstalling $package \n\n\n")
     Pkg.add(name=package, version=version)
 end
 
