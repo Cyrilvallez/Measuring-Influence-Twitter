@@ -28,6 +28,10 @@ packages_without_version = [
 
 
 for (package, version) in packages_with_version
+    # We need to set this prior to installing PyPlot
+    if package == "PyPlot"
+        ENV["PYTHON"] = ""
+    end
     Pkg.add(name=package, version=version)
 end
 
