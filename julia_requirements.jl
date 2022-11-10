@@ -18,12 +18,12 @@ packages_with_version = [
     ("WordCloud", "0.10.7"),
     ("URIs", "1.4.0"),
     ("PlotlyBase", "0.8.19"),
-    ("PlutoPlotly", "0.3.4")
+    ("PlutoPlotly", "0.3.4"),
     ("PlotlyJS", "0.18.9"),
 ]
 
 packages_without_version = [
-    "Dates"
+    "Dates",
 ]
 
 
