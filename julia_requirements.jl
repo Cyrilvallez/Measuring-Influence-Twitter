@@ -41,6 +41,11 @@ for (package, version) in packages_with_version
 
     Pkg.add(name=package, version=version)
 
+    # First import will trigger installation of matplotlib inside julia
+    if package == "PyPlot"
+        import PyPlot
+    end
+
 end
 
 for package in packages_without_version
