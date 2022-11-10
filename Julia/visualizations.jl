@@ -48,7 +48,7 @@ function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascad
     if split_by_partition
         partition_levels = mean_actors_per_level.(influence_cascades)
         levels = [0:(length(x)-1) for x in partition_levels]
-        titles = sort(unique(df[!,:partition]))
+        titles = sort(unique(df.partition))
     else
         partition_levels = mean_actors_per_level(vcat(influence_cascades...))
         levels = 0:(length(partition_levels)-1)
@@ -168,7 +168,7 @@ end
 
 
 """
-Plot the number of appearance of each actor in the dataset as a barplot. 
+Plot the number of appearance of each actor in the dataset as a boxplot. 
 """
 function plot_actor_frequency(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
 

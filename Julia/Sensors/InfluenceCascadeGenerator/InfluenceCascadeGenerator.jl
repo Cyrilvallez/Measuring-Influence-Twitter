@@ -11,7 +11,7 @@ function InfluenceCascadeGenerator(cuttoff::Float64)
 end
 
 
-struct InfluenceCascade
+mutable struct InfluenceCascade
     # The influence matrix at each level
     cascade::OrderedDict{AbstractString, Matrix}
     # The tuples representing edges between actors at each level
@@ -36,6 +36,8 @@ function normalize_cascade(cascade::InfluenceCascade)
         # if total_influence is not 0, divide by it (otherwise just put 0 because this means all cascades were 0)
         cascade.cascade[key] = ifelse.(total_influence .> 0, cascade.cascade[key] ./ total_influence, zeros(M,M))
     end
+
+    cascade.is_normalized = true
 end
 
 
