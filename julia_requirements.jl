@@ -1,5 +1,9 @@
 import Pkg
 
+### Note : you will need to have the command `unzip` on your machine for the installation
+### to complete correctly. On linux run : "sudo apt install unzip".
+
+
 packages_with_version = [
     ("CSV", "0.10.4"),
     ("JSON", "0.21.3"),
@@ -9,6 +13,7 @@ packages_with_version = [
     ("DataStructures", "0.18.13"),
     ("StatsBase", "0.33.21"),
     ("URIs", "1.4.0"),
+    ("BenchmarkTools", "1.3.1"),
     ("Graphs", "1.7.4"),
     ("SimpleWeightedGraphs", "1.2.1"),
     ("GraphPlot", "0.5.2"),
