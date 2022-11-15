@@ -5,8 +5,9 @@ using PlotlyBase, GraphPlot, Colors, WordCloud
 using StatsBase: mean, countmap
 import PyPlot as plt
 
+# need using ..Sensors here (see https://discourse.julialang.org/t/writing-functions-for-types-defined-in-another-module/31895/4)
 include("../Sensors/Sensors.jl")
-using .Sensors: InfluenceCascade
+using ..Sensors: InfluenceCascade
 
 export plot_cascade_sankey,
        plot_graph,

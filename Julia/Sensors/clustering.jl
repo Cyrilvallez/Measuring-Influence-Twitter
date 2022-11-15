@@ -2,7 +2,7 @@ using DataFrames
 using Clustering
 
 include("Sensors.jl")
-using .Sensors: InfluenceCascade
+using ..Sensors: InfluenceCascade
 
 struct CascadeClusterer  
     embed
