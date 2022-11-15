@@ -1,6 +1,5 @@
 using PlotlyJS
-include("../../influencecascade_platform.jl")
-include("InfluenceCascadeGenerator.jl")
+include("cascade.jl")
 
 a = [0.1 0.2;0.05 0.2]
 b = [0.8 0.2;0.6 0.1]
@@ -37,10 +36,10 @@ B[3,4] = f
 B[4,1] = g
 
 cuttoff = 0.5
-icg = InfluenceCascadeGenerator(cuttoff)
+icg = InfluenceCascadeGenerator(cuttoff, false)
 
-cascades_A = observe(A, icg, false)
-cascades_B = observe(B, icg, false)
+cascades_A = observe(A, icg)
+cascades_B = observe(B, icg)
 
 a = cascades_A[1]
 b = cascades_B[1]

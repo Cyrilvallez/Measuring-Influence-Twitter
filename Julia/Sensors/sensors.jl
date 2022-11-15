@@ -1,21 +1,26 @@
+module Sensors
+
 using DataFrames
 
-# Include this file to import all others at once
-include("TimeSeriesGenerator/TSGenerator.jl")
-include("InfluenceGrapher/InfluenceGrapher.jl")
-include("InfluenceCascadeGenerator/InfluenceCascadeGenerator.jl")
+export TimeSeriesGenerator, InfluenceGraphGenerator, InfluenceCascadeGenerator, Pipeline
+export SMeasure
+export observe
+
+include("timeseries.jl")
+include("graphs.jl")
+include("cascades.jl")
 
 struct Pipeline
 
     time_series_generator::TimeSeriesGenerator
-    influence_grapher::InfluenceGrapher
+    influence_grapher::InfluenceGraphGenerator
     influence_cascade_generator::InfluenceCascadeGenerator
 
 end
 
 function Pipeline(cuttoff::Float64)
     tsg = TimeSeriesGenerator()
-    ig = InfluenceGrapher()
+    ig = InfluenceGraphGenerator()
     icg = InfluenceCascadeGenerator(cuttoff)
     return Pipeline(tsg, ig, icg)
 end
@@ -34,3 +39,6 @@ function observe(df::DataFrame, pipeline::Pipeline)
     return influence_graphs, influence_cascades
 
 end
+
+
+end # module

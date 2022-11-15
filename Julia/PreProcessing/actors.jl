@@ -1,6 +1,5 @@
 using DataFrames
 
-
 """
 Define actor as countries, using the country_code in the tweeets.
 """
@@ -72,3 +71,4 @@ actor_options = [
 	follower_count,
 	username
 ]
+

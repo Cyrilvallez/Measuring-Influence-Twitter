@@ -6,7 +6,6 @@ Created on Thu Oct 13 10:46:34 2022
 @author: cyrilvallez
 """
 
-import numpy as np
 import pandas as pd
 import time
 

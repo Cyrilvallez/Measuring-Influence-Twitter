@@ -9,7 +9,6 @@ NEWS_TABLE_RAW = PROJECT_FOLDER * "/Data/news_table-v1-UT60-FM5.csv"
 NEWS_TABLE_PROCESSED = PROJECT_FOLDER * "/Data/news_table_clean.csv"
 
 
-
 """
 Return the TUFM classification from the news table.
 """
@@ -104,3 +103,4 @@ function classify(domains::Vector, news_outlet::DataFrame)
 	end
     return missing
 end
+

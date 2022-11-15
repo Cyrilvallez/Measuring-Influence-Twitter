@@ -20,10 +20,12 @@ begin
 	Pkg.activate()
 	using PlutoUI, Dates
 	import PlutoPlotly
-	include("../Sensors/sensors.jl")
-	include("../PreProcessing/preprocessing.jl")
-	include("../helpers.jl")
-	include("../visualizations.jl");
+
+	include("../Sensors/Sensors.jl")
+	include("../PreProcessing/PreProcessing.jl")
+	include("../Utils/Helpers.jl")
+	include("../Utils/Visualizations.jl")
+	using .Sensors, .PreProcessing, .Visualizations, .Helpers;
 end;
 
 # ╔═╡ e8ebe45d-1e7d-433c-93cd-50407798e06e
@@ -167,7 +169,7 @@ begin
 	tsg = TimeSeriesGenerator()
 	time_series = observe(df, tsg)
 
-	ig = InfluenceGrapher()
+	ig = InfluenceGraphGenerator()
 	influence_graph = observe(time_series, ig)
 
 	# This needs to be after the creation of the time series (because it sorts the dataframe inplace), thus 
@@ -192,7 +194,7 @@ begin
 	md"""
 	The cascades are now computed.
 
-	Choose the partition to use to show the influence graph and influence cascades : $(@bind part Select(partitions))
+	Choose the partition to use to show the influence graph and influence cascades : $(@bind partition Select(partitions))
 
 	Additionally, choose the type of edge to plot between actors in the influence graph : $(@bind edge_type Select(edge_types, default="Any Edge"))
 	"""
@@ -200,22 +202,9 @@ end
 
 # ╔═╡ 2f95e8f5-7a66-4134-894d-9b4a05cc8006
 begin
-	function make_simplifier(edge_type)
-		if edge_type == "Any Edge"
-			return x -> (maximum(x) > cuttoff)
-		else
-			linear_idx = findfirst(x -> x == edge_type, edge_types)
-			N = length(actions)
-			matrix_idx_1 = linear_idx ÷ N + 1
-			matrix_idx_2 = linear_idx % N
-			return x -> (x[matrix_idx_1, matrix_idx_2] > cuttoff)
-			#return x->(x[idx]>cuttoff)
-		end
-	end
-
-	simplifier = make_simplifier(edge_type)
-
-	partition_index = (1:length(partitions))[findfirst(part .== partitions)]
+	
+	simplifier = make_simplifier(edge_type, cuttoff, edge_types)
+	partition_index = (1:length(partitions))[findfirst(partition .== partitions)]
 	#xs, ys, influencers = influence_layout(influence_graph[i]; simplifier=s)
 
 	# In this case we plot the graph on a world map

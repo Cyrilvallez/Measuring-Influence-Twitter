@@ -1,6 +1,8 @@
-include("../InfluenceCascadeGenerator/InfluenceCascadeGenerator.jl")
 using DataFrames
 using Clustering
+
+include("Sensors.jl")
+using .Sensors: InfluenceCascade
 
 struct CascadeClusterer  
     embed
