@@ -1,5 +1,7 @@
 using DataStructures
 
+struct WithoutCuttoff end
+
 struct InfluenceCascadeGenerator 
     cuttoff::Float64
     normalize::Bool
@@ -7,6 +9,11 @@ end
 
 function InfluenceCascadeGenerator(cuttoff::Float64)
     return InfluenceCascadeGenerator(cuttoff, true)
+end
+
+# Implement a "fake" cuttoff set to 0, for causal measures which are binary (either influence or no influence, but no value)
+function InfluenceCascadeGenerator(::Type{WithoutCuttoff}; normalize=true)
+    return InfluenceCascadeGenerator(0, normalize)
 end
 
 

@@ -8,6 +8,8 @@ packages_with_version = [
     ("CSV", "0.10.4"),
     ("JSON", "0.21.3"),
     ("CausalityTools", "1.4.1"),
+    ("Distances", "0.10.7"),
+    ("HypothesisTests", "0.10.11"),
     ("Colors", "0.12.8"),
     ("DataFrames", "1.3.6"),
     ("DataStructures", "0.18.13"),

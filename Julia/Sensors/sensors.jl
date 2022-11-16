@@ -3,7 +3,8 @@ module Sensors
 using DataFrames
 
 export TimeSeriesGenerator, InfluenceGraphGenerator, InfluenceCascadeGenerator, Pipeline
-export SMeasure
+export SMeasure, JointDistanceDistribution
+export WithoutCuttoff
 export observe
 
 include("timeseries.jl")

@@ -18,6 +18,7 @@ export plot_cascade_sankey,
        plot_actor_wordcloud
        
 
+# Some default parameters for better plots
 begin
     rcParams = plt.PyDict(plt.matplotlib."rcParams")
     rcParams["font.family"] = ["serif"]
