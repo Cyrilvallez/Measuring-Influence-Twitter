@@ -1,9 +1,10 @@
 module Sensors
 
 using DataFrames
+using Dates
 
 export TimeSeriesGenerator, InfluenceGraphGenerator, InfluenceCascadeGenerator, Pipeline
-export SMeasure, JointDistanceDistribution
+export SMeasure, JointDistanceDistribution, TransferEntropy
 export WithoutCuttoff
 export observe
 
@@ -19,8 +20,8 @@ struct Pipeline
 
 end
 
-function Pipeline(cuttoff::Float64)
-    tsg = TimeSeriesGenerator()
+function Pipeline(time_interval::Period, cuttoff::Float64)
+    tsg = TimeSeriesGenerator(time_interval)
     ig = InfluenceGraphGenerator()
     icg = InfluenceCascadeGenerator(cuttoff)
     return Pipeline(tsg, ig, icg)
