@@ -31,21 +31,6 @@ mutable struct InfluenceCascade
 end
 
 
-"""
-Normalize the cascade by its total influence values
-"""
-function normalize_cascade(cascade::InfluenceCascade)
-    total_influence = sum(collect(values(cascade.cascade)))
-    M = size(total_influence, 1)
-
-    for key in keys(cascade.cascade)
-        # if total_influence is not 0, divide by it (otherwise just put 0 because this means all cascades were 0)
-        cascade.cascade[key] = ifelse.(total_influence .> 0, cascade.cascade[key] ./ total_influence, zeros(M,M))
-    end
-
-    cascade.is_normalized = true
-end
-
 
 """
 Return the influence cascades from the adjacency matrix containing the transfer entropy per actions.
@@ -87,8 +72,8 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
         cascade = OrderedDict{AbstractString, Matrix}()
         # Will contains the actors edges of the cascade
         actor_indices = OrderedDict{AbstractString, Vector{Tuple{Int, Int}}}()
-        # Will contain the number of actors at each level
-        actors_per_level = []
+        # Will contain the number of actors at each level (first level is always only 1 actor)
+        actors_per_level = [1]
     
         # Initialize the dicts for the first levels
         cascade["$level => $(level+1)"] = zeros(M, M)
@@ -98,9 +83,8 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
         visited = [influencer]
 
         while (!isempty(queue))
-            # number of nodes at the current depth (level)
+            # number of queued nodes at the current depth (level)
             level_size = length(queue)
-            push!(actors_per_level, level_size)
             while (level_size != 0)
                 level_size -= 1
                 node = dequeue!(queue)
@@ -111,21 +95,31 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
                     # there can be multiple connection
                     cascade["$level => $(level+1)"] += ifelse.(data[node, ind] .> icg.cuttoff, data[node, ind], zeros(M,M))
                     push!(actor_indices["$level => $(level+1)"], (node, ind))
-                    # if we did nor visit it, add it to the queue
+                    # if we did not visit it, add it to the queue
                     if !(ind in visited)
                         enqueue!(queue, ind)
                         push!(visited, ind)
                     end
                 end
             end
+
+            # In general this is different from `level_size` because some actors may not be present in the queue if they were already processed
+            push!(actors_per_level, length(unique([i[2] for i in actor_indices["$level => $(level+1)"]])))
+
             if !(isempty(queue))
                 level += 1
                 cascade["$level => $(level+1)"] = zeros(M, M)
                 actor_indices["$level => $(level+1)"] = []
             end
         end
-        # add number of actors in the last level
-        push!(actors_per_level, length(unique([i[2] for i in actor_indices["$level => $(level+1)"]])))
+
+        # In this case, the last nodes in the cascade were new (not already visited) nodes, thus 
+        # the queue was not empty before the last level, even though they are not connected to any other. We remove the corresponding empty values.
+        if isempty(actor_indices["$level => $(level+1)"])
+            delete!(actor_indices, "$level => $(level+1)")
+            delete!(cascade, "$level => $(level+1)")
+            pop!(actors_per_level)
+        end
         # Create the influence_cascade objects and add it to the list
         influence_cascade = InfluenceCascade(cascade, actor_indices, actors_per_level, influencer, icg.normalize)
         push!(influence_cascades, influence_cascade)
@@ -141,3 +135,19 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
     return influence_cascades
 end
 
+
+
+"""
+Normalize the cascade by its total influence values
+"""
+function normalize_cascade(cascade::InfluenceCascade)
+    total_influence = sum(collect(values(cascade.cascade)))
+    M = size(total_influence, 1)
+
+    for key in keys(cascade.cascade)
+        # if total_influence is not 0, divide by it (otherwise just put 0 because this means all cascades were 0)
+        cascade.cascade[key] = ifelse.(total_influence .> 0, cascade.cascade[key] ./ total_influence, zeros(M,M))
+    end
+
+    cascade.is_normalized = true
+end

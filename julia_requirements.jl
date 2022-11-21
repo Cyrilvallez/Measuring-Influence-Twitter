@@ -8,8 +8,6 @@ packages_with_version = [
     ("CSV", "0.10.4"),
     ("JSON", "0.21.3"),
     ("CausalityTools", "1.4.1"),
-    ("Distances", "0.10.7"),
-    ("HypothesisTests", "0.10.11"),
     ("Colors", "0.12.8"),
     ("DataFrames", "1.3.6"),
     ("DataStructures", "0.18.13"),
@@ -27,6 +25,9 @@ packages_with_version = [
     ("Pluto", "0.19.9"),
     ("PlutoUI", "0.7.43"),
     ("PlutoPlotly", "0.3.4"),
+    ("IJulia", "1.23.3"),
+    # TODO : remove Revise when pushing final versions
+    ("Revise", "3.4.0"),
 ]
 
 packages_without_version = [

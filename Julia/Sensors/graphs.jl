@@ -17,37 +17,6 @@ struct JointDistanceDistribution <: CausalityFunction end
 struct TransferEntropy <: CausalityFunction end
 
 
-function _surrogate_wrapper(measure::Function, threshold::Real, surrogate::Surrogate, Nsurro::Int)
-
-    function wrapper(x, y)
-        causality_value = measure(x, y)
-        # If it is lower, we check the same measure with surrogates
-        if causality_value < threshold
-            generator = surrogenerator(x, surrogate)
-            surro_values = Vector(undef, Nsurro)
-            for i = 1:Nsurro
-                surro_values[i] = measure(generator(), y)
-            end
-            limit = minimum(surro_values)/4
-
-            # This is accepted since it is significantly lower than for the surrogates
-            if causality_value < limit
-                return 1
-            # This is not accepted in comparison to the surrogates
-            else
-                return 0
-            end
-        # In this case no need to check with the surrogates
-        else
-            return 0
-        end
-    end
-
-    return wrapper
-
-end
-
-
 struct InfluenceGraphGenerator 
     causal_function::Function
 end
@@ -164,3 +133,34 @@ function observe(time_series::Vector{Vector{Matrix{Float64}}}, ig::InfluenceGrap
 end
 
 
+
+
+function _surrogate_wrapper(measure::Function, threshold::Real, surrogate::Surrogate, Nsurro::Int)
+
+    function wrapper(x, y)
+        causality_value = measure(x, y)
+        # If it is lower, we check the same measure with surrogates
+        if causality_value < threshold
+            generator = surrogenerator(x, surrogate)
+            surro_values = Vector(undef, Nsurro)
+            for i = 1:Nsurro
+                surro_values[i] = measure(generator(), y)
+            end
+            limit = minimum(surro_values)/4
+
+            # This is accepted since it is significantly lower than for the surrogates
+            if causality_value < limit
+                return 1
+            # This is not accepted in comparison to the surrogates
+            else
+                return 0
+            end
+        # In this case no need to check with the surrogates
+        else
+            return 0
+        end
+    end
+
+    return wrapper
+
+end

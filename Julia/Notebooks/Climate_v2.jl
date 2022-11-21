@@ -19,14 +19,20 @@ begin
 	import Pkg
 	Pkg.activate()
 	using PlutoUI, Dates
+	using Revise
 	import PlutoPlotly
 
-	include("../Sensors/Sensors.jl")
-	include("../PreProcessing/PreProcessing.jl")
-	include("../Utils/Helpers.jl")
-	include("../Utils/Visualizations.jl")
-	using .Sensors, .PreProcessing, .Visualizations, .Helpers;
+	includet("../Sensors/Sensors.jl")
+	includet("../PreProcessing/PreProcessing.jl")
+	includet("../Utils/Helpers.jl")
+	includet("../Utils/Visualizations.jl")
+	#using ..Sensors, ..PreProcessing, ..Visualizations, ..Helpers
 end;
+
+# ╔═╡ 9dc7da08-e296-4c1b-a0dc-293cb3788c25
+md"""
+Select true to run the notebooks. $(@bind foo Select([true, false], default=false))
+"""
 
 # ╔═╡ e8ebe45d-1e7d-433c-93cd-50407798e06e
 begin
@@ -45,13 +51,13 @@ begin
 	
 	if isempty(datafiles)
 		datafolder2 = joinpath(datafolder, "COP26_processed_lightweight")
-		frames = [load_json(joinpath(datafolder2, file)) for file in 				readdir(datafolder2) if occursin(".json", file)]
+		frames = [Helpers.load_json(joinpath(datafolder2, file)) for file in 				readdir(datafolder2) if occursin(".json", file)]
 		data = vcat(frames...)
 	elseif length(datafiles) == 1 && isdir(datafiles[1])
-		frames = [load_json(joinpath(datafolder, datafiles[1], file)) for file in 	readdir(datafiles[1]) if occursin(".json", file)]
+		frames = [Helpers.load_json(joinpath(datafolder, datafiles[1], file)) for file in 	readdir(datafiles[1]) if occursin(".json", file)]
 		data = vcat(frames...)
 	else
-		frames = [load_json(datafolder * file) for file in datafiles]
+		frames = [Helpers.load_json(datafolder * file) for file in datafiles]
 		data = vcat(frames...)
 	end
 
@@ -68,12 +74,12 @@ begin
 	md"""
 	## Defining Investigation Scope
 	
-	Choose the way to identify the data partition: $(@bind part_fun Select(partition_options, default=cop_26_dates))
+	Choose the way to identify the data partition: $(@bind part_fun Select(PreProcessing.partition_options, default=PreProcessing.cop_26_dates))
 	
-	Choose the way to define actor groups: $(@bind actor_fun Select(actor_options,
-	default=follower_count))
+	Choose the way to define actor groups: $(@bind actor_fun Select(PreProcessing.actor_options,
+	default=PreProcessing.follower_count))
 	
-	Choose the way to define distinct action types: $(@bind action_fun Select(action_options, default=trust_score))
+	Choose the way to define distinct action types: $(@bind action_fun Select(PreProcessing.action_options, default=PreProcessing.trust_score))
 	"""
 end
 
@@ -103,7 +109,7 @@ Here is the number of tweets per actors, per partition :
 
 # ╔═╡ d6223bf9-d771-48e6-ab79-6190cc812d6a
 begin
-	plot_actor_frequency(df)
+	Visualizations.plot_actor_frequency(df)
 end
 
 # ╔═╡ 7ba3305e-d040-4caf-984d-b32c4062a91b
@@ -114,7 +120,7 @@ the log of their number of followers.
 
 # ╔═╡ cf940b57-849f-4976-920f-37acc38abc97
 begin
-	plot_actor_wordcloud(df, Nactor=300)
+	Visualizations.plot_actor_wordcloud(df, Nactor=300)
 end
 
 # ╔═╡ 91772531-105c-4ce8-aad3-5f3bd2b5b83c
@@ -124,7 +130,7 @@ md"""
 
 # ╔═╡ 9326b201-85c7-4aaa-8df3-2bd9eec76d6e
 begin
-	plot_action_frequency(df)
+	Visualizations.plot_action_frequency(df)
 end
 
 # ╔═╡ 80891328-ab47-4b56-a482-ec35cb763add
@@ -160,22 +166,11 @@ end
 begin
 	total_min = time[1]*60 + time[2]
 	
-	clean_dates = x -> floor(x, Dates.Minute(total_min))
+	tsg = Sensors.TimeSeriesGenerator(Minute(total_min))
+	ig = Sensors.InfluenceGraphGenerator(Sensors.JointDistanceDistribution, alpha=0.001)
 
-	# Set the time column and sort according to it (inplace)
-	df.time = clean_dates.(df."created_at")
-	
-	
-	tsg = TimeSeriesGenerator()
-	time_series = observe(df, tsg)
-
-	ig = InfluenceGraphGenerator()
-	influence_graph = observe(time_series, ig)
-
-	# This needs to be after the creation of the time series (because it sorts the dataframe inplace), thus 
-	#actions = unique(df.action)
-	#actors = unique(df.actor)
-	#partitions = unique(df.partition)
+	time_series = Sensors.observe(df, tsg)
+	influence_graphs = Sensors.observe(time_series, ig)
 
 	md"""
 	Choose the transfer entropy cuttoff value (above which we will consider influence to occur).  
@@ -185,8 +180,8 @@ end
 
 # ╔═╡ de10fa0e-2f67-41f5-bcaa-e4fbc2c24582
 begin
-	icg = InfluenceCascadeGenerator(cuttoff)
-	influence_cascades = observe.(influence_graph, Ref(icg))
+	icg = Sensors.InfluenceCascadeGenerator(cuttoff)
+	influence_cascades = Sensors.observe.(influence_graphs, Ref(icg))
 
 	edge_types = [string(n1, " to ", n2) for n1 in actions for n2 in actions]
 	push!(edge_types, "Any Edge")
@@ -203,16 +198,16 @@ end
 # ╔═╡ 2f95e8f5-7a66-4134-894d-9b4a05cc8006
 begin
 	
-	simplifier = make_simplifier(edge_type, cuttoff, edge_types)
+	simplifier = Helpers.make_simplifier(edge_type, cuttoff, edge_types)
 	partition_index = (1:length(partitions))[findfirst(partition .== partitions)]
 	#xs, ys, influencers = influence_layout(influence_graph[i]; simplifier=s)
 
 	# In this case we plot the graph on a world map
-	if actor_fun == country
-		PlotlyJS.plot(map_plot(df)...)
+	if actor_fun == PreProcessing.country
+		PlotlyJS.plot(Visualizations.map_plot(df)...)
 	# In this case we plot a simple graph of the actors
 	else
-		plot_graph(influence_graph[partition_index], df, simplifier=simplifier)
+		Visualizations.plot_graph(influence_graphs[partition_index], df, simplifier)
 	end
 end
 
@@ -232,7 +227,7 @@ begin
 		"""
 	elseif length(influencers) == 1
 		md"""
-		Here is the only influence cascade :
+		Here is the only influence cascade from $(influencers[1]) :
 		"""
 	else
 		md"""
@@ -248,14 +243,18 @@ begin
 	if isempty(influencers)
 		nothing
 	elseif length(influencers) == 1
-		PlutoPlotly.plot(plot_cascade_sankey(influence_cascades[partition_index][1], df)...)
+		PlutoPlotly.plot(Visualizations.plot_cascade_sankey(influence_cascades[partition_index][1], df)...)
 	else
-		[PlutoPlotly.plot(plot_cascade_sankey(
-			influence_cascades[partition_index][findfirst(influencer_node1 .== influencers)], df)...),
-		
-		PlutoPlotly.plot(plot_cascade_sankey(
-			influence_cascades[partition_index][findfirst(influencer_node2 .== influencers)], df)...)
-		]
+		PlutoPlotly.plot(Visualizations.plot_cascade_sankey(
+			influence_cascades[partition_index][findfirst(influencer_node1 .== influencers)], df)...)
+	end
+end
+
+# ╔═╡ 241a7b87-0ab9-47be-8b78-f141b6e6fd6e
+begin
+	if length(influencers) > 1
+		PlutoPlotly.plot(Visualizations.plot_cascade_sankey(
+				influence_cascades[partition_index][findfirst(influencer_node2 .== influencers)], df)...)
 	end
 end
 
@@ -272,28 +271,30 @@ begin
 	if all(isempty(cascade) for cascade in influence_cascades)
 		nothing
 	else
-		plot_actors_per_level(influence_cascades, df)
+		Visualizations.plot_actors_per_level(influence_cascades, df)
 	end
 end
 
 # ╔═╡ Cell order:
 # ╟─1e33f69e-247c-11ed-07ff-e9204ff08266
+# ╟─9dc7da08-e296-4c1b-a0dc-293cb3788c25
 # ╠═e8ebe45d-1e7d-433c-93cd-50407798e06e
-# ╠═7c344844-5e28-4d10-850b-10697ea64c68
-# ╠═e24ba873-cbb3-4823-be27-e9dfb2d8db89
-# ╠═7286c17d-87e2-44a1-8a31-ad0d77e24838
+# ╟─7c344844-5e28-4d10-850b-10697ea64c68
+# ╟─e24ba873-cbb3-4823-be27-e9dfb2d8db89
+# ╟─7286c17d-87e2-44a1-8a31-ad0d77e24838
 # ╟─30c0bbd9-0f54-4438-9e4c-464beac97c1e
 # ╟─d6223bf9-d771-48e6-ab79-6190cc812d6a
 # ╟─7ba3305e-d040-4caf-984d-b32c4062a91b
 # ╟─cf940b57-849f-4976-920f-37acc38abc97
 # ╟─91772531-105c-4ce8-aad3-5f3bd2b5b83c
 # ╟─9326b201-85c7-4aaa-8df3-2bd9eec76d6e
-# ╠═80891328-ab47-4b56-a482-ec35cb763add
-# ╠═a7d3259b-f540-4e63-bd80-002087535434
-# ╠═de10fa0e-2f67-41f5-bcaa-e4fbc2c24582
-# ╠═2f95e8f5-7a66-4134-894d-9b4a05cc8006
+# ╟─80891328-ab47-4b56-a482-ec35cb763add
+# ╟─a7d3259b-f540-4e63-bd80-002087535434
+# ╟─de10fa0e-2f67-41f5-bcaa-e4fbc2c24582
+# ╟─2f95e8f5-7a66-4134-894d-9b4a05cc8006
 # ╟─3906fdb1-856c-4e39-af2f-83e67960d68f
 # ╟─f1899f0e-4b9a-4abf-a495-c36a2c8815d4
 # ╟─7defe873-ab21-429d-becc-872af5cf3ec1
+# ╟─241a7b87-0ab9-47be-8b78-f141b6e6fd6e
 # ╟─6847306d-fd38-4f37-81a9-604d03b57ff9
 # ╟─d478ea37-41dd-40a2-ba69-f40927b3aaf8
