@@ -13,6 +13,7 @@ using ..Sensors: InfluenceCascade
 export plot_cascade_sankey,
        plot_graph,
        plot_graph_map,
+       plot_edge_types,
        plot_actors_per_level,
        plot_actor_frequency,
        plot_action_frequency,
@@ -96,8 +97,8 @@ function plot_cascade_sankey(influence_cascade::InfluenceCascade, df::DataFrame)
             push!(new_levels, levels[i+1])
             push!(new_x, x[i+1])
         else
-            sources[old_sources.>i] .-= 1
-            targets[old_targets.>i] .-= 1
+            sources[old_sources .> i] .-= 1
+            targets[old_targets .> i] .-= 1
         end
     end
 
@@ -146,11 +147,72 @@ function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame, simplifie
     # remove unconnected nodes from the drawing of the graph
     outdegrees = outdegree(g)
     indegrees = indegree(g)
-    connected_vertices = [i for i in vertices(g) if (outdegrees[i] > 0 && indegrees[i] > 0)]
+    connected_vertices = [i for i in vertices(g) if (outdegrees[i] > 0 || indegrees[i] > 0)]
     connected_graph, vmap = induced_subgraph(g, connected_vertices)
     connected_vertices_labels = node_labels[vmap]
     # Plot only connected nodes
     gplot(connected_graph, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
+
+end
+
+
+
+function plot_edge_types(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::DataFrame, cuttoff::Real = 0.0; width::Real = 0.25,
+    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder = [2,3,1])
+
+    if save && isnothing(filename)
+        throw(ArgumentError("You must provide a filename if you want to save the figure."))
+    end
+
+    # Actions and partitions are represented in the order they appear in sort(unique(df)) in the adjacency matrix
+    actions = sort(unique(df.action))
+    partitions = sort(unique(df.partition))
+
+    N_actions = length(actions)
+    N_partitions = length(partitions)
+    
+    edge_types = [string(n1, " to ", n2) for n1 in actions for n2 in actions]
+
+    edge_number = Matrix{Int}(undef, N_partitions, N_actions^2)
+
+    for (k, adjacency) in enumerate(influence_graphs)
+        linear_index = 0
+        for i = 1:N_actions, j = 1:N_actions
+            linear_index += 1
+            simplifier = x -> (x[i, j] > cuttoff)
+            edge_number[k, linear_index] = sum(simplifier.(adjacency))
+        end
+    end
+
+    # Optionally reorder the bars in the plot
+    if !isnothing(reorder)
+        partitions = partitions[reorder]
+        edge_number = edge_number[reorder, :]
+    end
+
+    # Make it the proportion instead of the raw number
+    edge_number = edge_number ./ sum(edge_number, dims=2)
+
+
+    X, tick_position = barplot_layout(N_partitions, N_actions^2, width=width, inner_spacing=inner_spacing, outer_spacing=outer_spacing)
+
+    plt.figure()
+    for i = 1:N_partitions
+        plt.bar(X[i,:], edge_number[i,:], width=width, label=partitions[i], zorder=2)
+    end
+    plt.xlabel("Edge type")
+    plt.ylabel("Proportion of total number of edges")
+    plt.legend()
+    plt.grid(true, which="major", axis="y", zorder=0)
+    plt.xticks(tick_position, edge_types)
+    if log
+        plt.yscale("log")
+        plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
+    end
+    if save
+        plt.savefig(filename, bbox_inches="tight", dpi=400)
+    end
+    return plt.gcf()
 
 end
 

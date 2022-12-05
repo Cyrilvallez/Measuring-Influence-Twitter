@@ -24,7 +24,18 @@ end
 Partition data based on the relative date of COP26.
 """
 function cop_26_dates(df::DataFrame)
-	decide = x -> x < Date(2021, 10, 31) ? "Before COP26" : (x > Date(2021, 11, 12) ? "After COP26" : "During COP26")
+	decide = x -> x < Date(2021, 10, 31) ? "Before COP26" : (x > Date(2021, 11, 13) ? "After COP26" : "During COP26")
+	df.partition = decide.(df."created_at")
+	return df
+end
+
+
+
+"""
+Partition data based on the relative date of COP27.
+"""
+function cop_27_dates(df::DataFrame)
+	decide = x -> x < Date(2022, 11, 6) ? "Before COP27" : (x > Date(2022, 11, 19) ? "After COP27" : "During COP27")
 	df.partition = decide.(df."created_at")
 	return df
 end
