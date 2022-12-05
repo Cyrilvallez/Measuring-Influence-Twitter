@@ -12,6 +12,7 @@ conda init
 
 # Update current base environment to meet requirements
 conda env update --name base --file python_requirements.yaml
+# conda env create -f python_env.yaml
 
 
 # Download and install Julia 1.8.1
