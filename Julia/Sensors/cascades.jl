@@ -1,4 +1,5 @@
 using DataStructures
+import Base: ==
 
 struct WithoutCuttoff end
 
@@ -28,6 +29,13 @@ mutable struct InfluenceCascade
     root::Int
     # Indicates whether the cascade has been normalized 
     is_normalized::Bool
+end
+
+
+# Redefine equality for the InfluenceCascade objects
+function ==(a::InfluenceCascade, b::InfluenceCascade)
+    return ((a.cascade == b.cascade) && (a.actor_edges == b.actor_edges) && (a.actors_per_level == b.actors_per_level)
+        && (a.root == b.root) && (a.is_normalized == b.is_normalized))
 end
 
 
@@ -120,7 +128,7 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
             delete!(cascade, "$level => $(level+1)")
             pop!(actors_per_level)
         end
-        # Create the influence_cascade objects and add it to the list
+        # Create the InfluenceCascade object and add it to the list
         influence_cascade = InfluenceCascade(cascade, actor_indices, actors_per_level, influencer, icg.normalize)
         push!(influence_cascades, influence_cascade)
     end

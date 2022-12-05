@@ -13,7 +13,7 @@ struct TimeSeriesGenerator
     standardize::Bool
 end
 
-function TimeSeriesGenerator(time_interval::Period, standardize::Bool = true)
+function TimeSeriesGenerator(time_interval::Period; standardize::Bool = true)
     return TimeSeriesGenerator(time_interval, :created_at, :actor, :action, :partition, standardize)
 end
 
@@ -26,14 +26,14 @@ by sort(unique(data.actor))[1]. Same goes for the actions.
 Note that the time series inside each partition are not necessarily the same length, (e.g partitions based on time), however 
 they will all include all the actors and actions in the dataset, even if some actors (or actions) are not present for one or more partition.
 
-CAUTION : In order to get the time series correctly, we create column :time and sort the DataFrame according to it inplace. The order of the rows will be modified.
+CAUTION : In order to get the time series correctly, we create column :time_bin and sort the DataFrame according to it inplace. The order of the rows will be modified.
 """
 function observe(data::DataFrame, tsg::TimeSeriesGenerator)  
 
     # Bin the time column into time intervals
     round_time(data, tsg.time_interval, tsg.time_column)
     # We sort the dataframe in place ! The order of the rows will be modified.
-    sort!(data, :time)
+    sort!(data, :time_bin)
 
     # Compute unique values for all quantities, and sort them to give a consistent ordering
     actors = sort(unique(data[!, tsg.actor_column]))
@@ -59,8 +59,8 @@ function observe(data::DataFrame, tsg::TimeSeriesGenerator)
         # on time of tweets (corresponding to a sliding window) should not contain 0s for all times not accessible for them
         # e.g if the partitions are "Before COP26" and "After COP26" it does not make sense to include times "After COP26"
         # in the time series of the partition "Before COP26", as they will all bo 0s.
-        # Note that time is already sorted since we sorted the dataframe by it
-        times = unique(data_per_partition.time)
+        # Note that time_bin is already sorted since we sorted the dataframe by it
+        times = unique(data_per_partition.time_bin)
         N_times = length(times)
 
         # Enumerate over all actors even if some may not be present in current partition
@@ -77,11 +77,11 @@ function observe(data::DataFrame, tsg::TimeSeriesGenerator)
                 # Select relevant data portion
                 data_per_action = data_per_actor[data_per_actor[!, tsg.action_column] .== action, :]
                 # Compute time serie for the action (frequency of occurence by time). 
-                # We do not sort as we already sorted by :time at the beginning, thus the order of apearance is sufficient (it is sorted).
-                # Note that it does not matter what column we use for length : we only want the number of lines corresponding to given time in data
-                time_serie = combine(groupby(data_per_action, :time, sort=false),  tsg.partition_column  => length => :count)
+                # We do not sort as we already sorted by :time_bin at the beginning, thus the order of apearance is sufficient (it is sorted).
+                # Note that it does not matter what column we use for length : we only want the number of lines corresponding to given time_bin in data
+                time_serie = combine(groupby(data_per_action, :time_bin, sort=false),  tsg.partition_column  => length => :count)
                 # Cast it into the time series per actor
-                actor_time_series[indexin(time_serie.time, times), k] = time_serie.count
+                actor_time_series[indexin(time_serie.time_bin, times), k] = time_serie.count
 
             end
 
@@ -171,11 +171,11 @@ end
 
 
 """
-Create a new column `time` in the dataframe, binning the `time_column` of the dataframe in bins of size `time_interval`.  
-Each value of df.time is the value of the left limit of the interval in which the corresponding entry of `time_column` is contained.
+Create a new column `time_bin` in the dataframe, binning the `time_column` of the dataframe in bins of size `time_interval`.  
+Each value of df.time_bin is the value of the left limit of the interval in which the corresponding entry of `time_column` is contained.
 """
 function round_time(df::DataFrame, time_interval::Period, time_column::Union{Symbol, String} = :created_at)
     time_intervals = create_time_intervals(minimum(df[!, time_column]), maximum(df[!, time_column]), time_interval)
-    df.time = map_to_bin.(df[!, time_column], Ref(time_intervals))
+    df.time_bin = map_to_bin.(df[!, time_column], Ref(time_intervals))
 end
 

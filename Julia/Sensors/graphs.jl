@@ -1,5 +1,6 @@
 using CausalityTools
 using StatsBase: minimum
+import Random
 
 include("../Utils/entropy.jl")
 
@@ -61,16 +62,16 @@ Note : the distances will be computed using Euclidean distance.
 - τ::Int = 1 is the time delay for the embedding of the time series
 
 """
-function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 30,
-     alpha::Real = 0.001, B::Int = 10, d::Int = 5, τ::Int = 1)
+function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100,
+     seed::Int = 1234, alpha::Real = 0.001, B::Int = 10, d::Int = 5, τ::Int = 1)
 
      # If the p-value is inferior than α, we reject the null hypothesis that the mean is 0, and we accept that as influence (encoded with a 1)
     func(x, y) = pvalue(jdd(OneSampleTTest, x, y, B=B, D=d, τ=τ, μ0=0.0), tail=:right)
 
     if !isnothing(surrogate)
-        measure = _surrogate_wrapper(func, alpha, surrogate, Nsurro)
+        measure = _surrogate_wrapper(func, alpha, surrogate, Nsurro, seed)
     else
-        measure = func
+        measure = (x,y) -> func(x,y) < alpha ? 1 : 0
     end
 
     return InfluenceGraphGenerator(measure)
@@ -135,13 +136,13 @@ end
 
 
 
-function _surrogate_wrapper(measure::Function, threshold::Real, surrogate::Surrogate, Nsurro::Int)
+function _surrogate_wrapper(measure::Function, threshold::Real, surrogate::Surrogate, Nsurro::Int, seed::Int = 1234)
 
     function wrapper(x, y)
         causality_value = measure(x, y)
         # If it is lower, we check the same measure with surrogates
         if causality_value < threshold
-            generator = surrogenerator(x, surrogate)
+            generator = surrogenerator(x, surrogate, Random.Xoshiro(seed))
             surro_values = Vector(undef, Nsurro)
             for i = 1:Nsurro
                 surro_values[i] = measure(generator(), y)

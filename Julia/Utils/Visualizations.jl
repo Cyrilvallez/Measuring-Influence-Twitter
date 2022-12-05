@@ -2,7 +2,8 @@ module Visualizations
 
 using DataFrames, Graphs, SimpleWeightedGraphs
 using PlotlyBase, GraphPlot, Colors, WordCloud
-using StatsBase: mean, countmap
+using StatsBase: mean, countmap, proportionmap
+using Printf
 import PyPlot as plt
 
 # need using ..Sensors here (see https://discourse.julialang.org/t/writing-functions-for-types-defined-in-another-module/31895/4)
@@ -156,7 +157,7 @@ end
 
 
 function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame; split_by_partition::Bool = true, width::Real = 0.25,
-    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing)
+    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder = [2,1,3])
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -168,6 +169,13 @@ function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascad
         # Pad with zeros so that they all have the same length
         actor_levels = [vec([x... [0. for i = (length(x)+1):max_level]...]) for x in actor_levels]
         labels = sort(unique(df.partition))
+
+        # Optionally reorder the bars in the plot
+        if !isnothing(reorder)
+            actor_levels = actor_levels[reorder]
+            labels = labels[reorder]
+        end
+
     else
         # Shape it as a vector to be consistent with the case when `split_by_partition` is true
         actor_levels = [mean_actors_per_level(vcat(influence_cascades...))]
@@ -295,6 +303,33 @@ function plot_action_frequency(df::DataFrame; split_by_partition::Bool = true, w
         plt.yscale("log")
         plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
     end
+
+    # Compute proportion and put it as a label on top of the bars
+
+    proportionmaps = combine(groupby(df, :partition),  :action  => proportionmap => :proportion)
+    proportions = collect.(values.(proportionmaps.proportion))
+    actions_ = collect.(keys.(proportionmaps.proportion))
+    # Sort to ensure that we get the same ordering of the actions each time
+    for i in 1:length(proportions)
+        sorting = sortperm(actions_[i])
+        proportions[i] = proportions[i][sorting]
+    end
+    proportions = vcat(proportions...)
+
+   ax = plt.gca()
+
+    for (i, bar) in enumerate(ax.patches)
+        ax.annotate(@sprintf("%.2f", proportions[i]*100),
+                   (bar.get_x() + bar.get_width() / 2,
+                    bar.get_height()), ha="center", va="center",
+                   size=12, xytext=(0, 8),
+                   textcoords="offset points")
+    end
+
+    # Add 8% size to ylim to make sure annotations fit in the plot
+    lims = ax.get_ylim()
+    ax.set_ylim((lims[1], lims[2]*1.08))
+
     if save
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
