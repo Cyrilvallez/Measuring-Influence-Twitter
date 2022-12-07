@@ -13,10 +13,10 @@ import argparse
 import utils
 
 
-def make_query(filename: str, query: str, start_time: datetime,
+def query_API(filename: str, query: str, start_time: datetime,
                end_time: datetime, max_per_page: int, max_pages: int) -> None:
     """
-    Make a "search all" query to the twitter API v2 and saves the results to
+    Make a SINGLE "search all" query to the twitter API v2 and saves the results to
     the given `filename`.
 
     Parameters
@@ -66,14 +66,84 @@ def make_query(filename: str, query: str, start_time: datetime,
                 # write the json file with new line after each new dump
                 filehandle.write(f'{json.dumps(tweet)}\n')
                 
+                
+                
+def make_query(filename:str, query_file:str, start_time: datetime, end_time:datetime,
+               max_per_page:int, max_pages:int, verbose:bool = True) -> None:
+    """
+    Format and transform arguments, before making a query (or multiple queries) to
+    the Twitter API "search_all" endpoint. This function conveniently cut the time interval
+    into multiple queries to avoid very large files that could result from calling the API on a
+    period too large. 
+
+    Parameters
+    ----------
+    filename : str
+        Where to save the results. If we need to make multiple queries, this will
+        be the name of the folder where each file (named according to the query dates)
+        will be saved. If we only need one query, this will be the name of the file 
+        (and we add an extension to it).
+    query_file : str
+        The path to the text file containing the query.
+    start_time : datetime
+        The start date for looking up tweets.
+    end_time : datetime
+        The end date for looking up tweets.
+    max_per_page : int
+        The maximum number of tweets to get per page of results.
+    max_pages : int
+        The maximum number of pages to query (the total number of tweets retrieved
+        is max_per_page*max_pages). Set to `-1` for no limits.
+    verbose : bool, optional
+        Whether to write some summary to the standard output. The default is True.
+
+    Returns
+    -------
+    None
+
+    """
     
+    # Process the arguments :
+    # Load the query file
+    query = utils.load_query(query_file)
+    # Put utc timezones to the datetimes
+    start_time = start_time.replace(tzinfo=timezone.utc)
+    end_time = end_time.replace(tzinfo=timezone.utc)
+    # If max_per_page is higher than 100, we silently set it back to 100
+    max_per_page = max_per_page if max_per_page <= 100 else 100
+    # If max_pages is -1 we set it to inf so that there are no limits
+    max_pages = max_pages if max_pages != -1 else float('inf')
+    # We split the time into periods of 4 days and save the API answer to a new file
+    # for each period to avoid huge files
+    time_intervals = utils.split_time_interval(start_time, end_time)
+    filenames = utils.format_filename(filename, time_intervals)
+    
+    if verbose:
+        print(f'The query you used is : \n{query}')
+        if len(filenames) > 1:
+            print(f'Your query will be divided into {len(filenames)} response files.')
+    
+    for i in range(len(time_intervals)-1):
+        
+        # We log the arguments at the beginning of the file
+        log = {'query_file': query_file, 'query': query, 'start_time': time_intervals[i].isoformat(sep=' '), \
+           'end_date': time_intervals[i+1].isoformat(sep=' '), 'max_per_page': max_per_page, \
+           'max_pages': max_pages}
+        
+        with open(filenames[i], 'w') as filehandle:
+            filehandle.write(f'{json.dumps(log)}\n\n')
+    
+        query_API(filenames[i], query, time_intervals[i], time_intervals[i+1],
+              max_per_page, max_pages)
+        
+        
              
 
 if __name__ == "__main__":
     
     parser = argparse.ArgumentParser(description='Twitter API call')
     parser.add_argument('filename', type=str,
-                        help='A name for the output file.')
+                        help='A name for the output file. Please do NOT provide file extension.')
     parser.add_argument('query', type=str,
                         help='Path to the filename containing the query.')
     parser.add_argument('start_time', type=datetime.fromisoformat,
@@ -87,31 +157,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     filename = args.filename
-    query = utils.load_query(args.query)
-    start_time = args.start_time.replace(tzinfo=timezone.utc)
-    end_time = args.end_time.replace(tzinfo=timezone.utc)
+    query_file = args.query
+    start_time = args.start_time
+    end_time = args.end_time
     max_per_page = args.max_per_page
-    # If max_pages is -1 we set it to inf so that there are no limits
-    max_pages = args.max_pages if args.max_pages != -1 else float('inf')
-    print(f'The query you used is : \n{query}')
+    max_pages = args.max_pages
     
-    # We split the time into periods of 4 days and save the API answer to a new file
-    # for each period to avoid huge files
-    time_intervals = utils.split_time_interval(start_time, end_time)
-    filenames = utils.format_filename(filename, time_intervals)
-    
-    for i in range(len(time_intervals)-1):
-        
-        # We log the arguments at the beginning of the file
-        log = {'query_file': args.query, 'query': query, 'start_time': time_intervals[i].isoformat(sep=' '), \
-           'end_date': time_intervals[i+1].isoformat(sep=' '), 'max_per_page': max_per_page, \
-           'max_pages': max_pages}
-        
-        with open(filenames[i], 'w') as filehandle:
-            filehandle.write(f'{json.dumps(log)}\n\n')
-    
-        make_query(filenames[i], query, time_intervals[i], time_intervals[i+1],
-                   max_per_page, max_pages)
+    make_query(filename, query_file, start_time, end_time, max_per_page, max_pages)
     
     
     

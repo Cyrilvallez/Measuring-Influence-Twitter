@@ -151,10 +151,62 @@ for i in range(10):
     with open(filename, 'r') as file: 
         N_lines = sum(1 for _ in file) 
 dt2 = (time.time() - t0)/10
-        
+       
 
 #%%
-print(__file__)
 
+from datetime import datetime, timedelta
+import numpy as np
+
+def get_random_date(left_lim: date, right_lim: date, N: int) -> list[datetime]:
+    """
+    Generate random dates between the two limits provided (without replacement). 
+    The left limit is included, while the right limit is excluded. This means
+    you can obtain the left limit, but never the right one.
+    It return datetime with time set to 0 and utc timezone.
+
+    Parameters
+    ----------
+    left_lim : date
+        The left interval limit.
+    right_lim : date
+        The right interval limit.
+    N : int
+        The number of random dates you want between the two limits.
+
+    Raises
+    ------
+    ValueError
+        If N is larger than the interval.
+
+    Returns
+    -------
+    list[datetime]
+        The random datetimes between the limits.
+
+    """
+    
+    # Random number generator with seed to be reproducible
+    rng = np.random.default_rng(1234)
+    
+    delta = (right_lim - left_lim).days
+    
+    if N > delta:
+        raise ValueError('Cannot pick more sample than there are days in the interval you provided.')
+    
+    random_numbers = rng.choice(delta, size=N, replace=False)
+    # Sort the randm number so the random dates will also be ordered
+    random_numbers = np.sort(random_numbers)
+    random_dates = [left_lim + timedelta(days=int(rand)) for rand in random_numbers]
+    random_datetimes = [datetime(d.year, d.month, d.day, tzinfo=timezone.utc) for d in random_dates]
+    
+    return random_datetimes
+#%%
+
+d1 = date(2020, 10, 21)
+d2 = date(2022, 10, 21)
+
+foo = ('A filename corresponding to the same folder and date already exists.'
+                  ' Choose another folder name.')
 
 

@@ -473,11 +473,11 @@ if __name__ == '__main__':
     
     parser = argparse.ArgumentParser(description='Process tweets')
     parser.add_argument('filename', type=str,
-                        help='Path to the raw tweet file.')
+                        help='Path to the raw tweet file or folder containing tweet files.')
     parser.add_argument('--try_expand', type=str, choices=['True', 'False'], default='True',
-                        help='Whether to try to manually expand URLs that Twitter did not expand.')
+                        help='Whether to try to manually expand URLs that Twitter did not expand. The default is True.')
     parser.add_argument('--skiprows', type=int, default=2,
-                        help='The number of lines to skip at the beginning of the file.')
+                        help='The number of lines to skip at the beginning of the file. The default is 2.')
     args = parser.parse_args()
     
     filename = args.filename
