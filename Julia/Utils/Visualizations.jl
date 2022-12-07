@@ -3,7 +3,7 @@ module Visualizations
 using DataFrames, Graphs, SimpleWeightedGraphs
 using PlotlyBase, GraphPlot, Colors, WordCloud
 using StatsBase: mean, countmap, proportionmap
-using Printf
+using Printf, Logging
 import PyPlot as plt
 
 # need using ..Sensors here (see https://discourse.julialang.org/t/writing-functions-for-types-defined-in-another-module/31895/4)
@@ -219,7 +219,7 @@ end
 
 
 function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame; split_by_partition::Bool = true, width::Real = 0.25,
-    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder = [2,1,3])
+    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1])
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -411,9 +411,10 @@ Nactor: How much actor to include in the wordcloud
 normalize: whether to normalize the wordcloud (setting text size based on the log of the value)  
 save: whether to save the wordcloud  
 filename: filename for saving the wordcloud if save is true  
+verbose: whether or not to show warnings and indications in the wordcloud creation
 """
 function plot_actor_wordcloud(df::DataFrame; by_::String = "follower_count", reduc::Function = mean, Nactor::Int = 300, normalize::Bool = true,
-    save::Bool = false, filename = nothing)
+    save::Bool = false, filename = nothing, verbose::Bool = false)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -447,11 +448,25 @@ function plot_actor_wordcloud(df::DataFrame; by_::String = "follower_count", red
         weights = log10.(weights .+ 0.01)
     end
 
-    wc = wordcloud(words, weights, angles = (0), fonts = "Serif Bold", spacing = 1, colors = :seaborn_dark, maxfontsize = 300,
-        mask = shape(ellipse, 800, 600, color="#e6ffff", backgroundcolor=(0,0,0,0)))
-    rescale!(wc, 0.8)
-    placewords!(wc, style=:gathering)
-    generate!(wc, reposition=0.7)
+    if verbose == false
+        # Discard all standard outputs
+        redirect_stdout(devnull) do
+            wc = wordcloud(words, weights, angles = (0), fonts = "Serif Bold", spacing = 1, colors = :seaborn_dark, maxfontsize = 300,
+                mask = shape(ellipse, 800, 600, color="#e6ffff", backgroundcolor=(0,0,0,0)))
+            rescale!(wc, 0.8)
+            placewords!(wc, style=:gathering)
+            # Discard all built in julia logging
+            with_logger(NullLogger()) do 
+                generate!(wc, reposition=0.7)
+            end
+        end
+    else
+        wc = wordcloud(words, weights, angles = (0), fonts = "Serif Bold", spacing = 1, colors = :seaborn_dark, maxfontsize = 300,
+                mask = shape(ellipse, 800, 600, color="#e6ffff", backgroundcolor=(0,0,0,0)))
+        rescale!(wc, 0.8)
+        placewords!(wc, style=:gathering)
+        generate!(wc, reposition=0.7)
+    end
     if save
         paint(wc, filename)
     else

@@ -19,20 +19,23 @@ begin
 	import Pkg
 	Pkg.activate()
 	using PlutoUI, Dates
-	using Revise
 	import PlutoPlotly
 
-	includet("../Sensors/Sensors.jl")
-	includet("../PreProcessing/PreProcessing.jl")
-	includet("../Utils/Helpers.jl")
-	includet("../Utils/Visualizations.jl")
-	#using ..Sensors, ..PreProcessing, ..Visualizations, ..Helpers
+	include("../Sensors/Sensors.jl")
+	include("../PreProcessing/PreProcessing.jl")
+	include("../Utils/Helpers.jl")
+	include("../Utils/Visualizations.jl")
+	#using .Sensors, .PreProcessing, .Visualizations, .Helpers
 end;
 
-# ╔═╡ 9dc7da08-e296-4c1b-a0dc-293cb3788c25
-md"""
-Select true to run the notebooks. $(@bind foo Select([true, false], default=false))
-"""
+# ╔═╡ 604da907-49cd-4027-9b7e-285908d68af7
+begin
+	using DataFrames, Graphs, SimpleWeightedGraphs
+	using PlotlyBase, GraphPlot, Colors, WordCloud
+	using StatsBase: mean, countmap, proportionmap
+	using Printf, Logging
+	import PyPlot as plt
+end
 
 # ╔═╡ e8ebe45d-1e7d-433c-93cd-50407798e06e
 begin
@@ -167,7 +170,8 @@ begin
 	total_min = time[1]*60 + time[2]
 	
 	tsg = Sensors.TimeSeriesGenerator(Minute(total_min))
-	ig = Sensors.InfluenceGraphGenerator(Sensors.JointDistanceDistribution, alpha=0.001)
+	# ig = Sensors.InfluenceGraphGenerator(Sensors.JointDistanceDistribution, alpha=0.001)
+	ig = Sensors.InfluenceGraphGenerator()
 
 	time_series = Sensors.observe(df, tsg)
 	influence_graphs = Sensors.observe(time_series, ig)
@@ -198,7 +202,7 @@ end
 # ╔═╡ 2f95e8f5-7a66-4134-894d-9b4a05cc8006
 begin
 	
-	simplifier = Helpers.make_simplifier(edge_type, cuttoff, edge_types)
+	simplifier = Helpers.make_simplifier(edge_type, icg.cuttoff, edge_types)
 	partition_index = (1:length(partitions))[findfirst(partition .== partitions)]
 	#xs, ys, influencers = influence_layout(influence_graph[i]; simplifier=s)
 
@@ -277,8 +281,7 @@ end
 
 # ╔═╡ Cell order:
 # ╟─1e33f69e-247c-11ed-07ff-e9204ff08266
-# ╟─9dc7da08-e296-4c1b-a0dc-293cb3788c25
-# ╠═e8ebe45d-1e7d-433c-93cd-50407798e06e
+# ╟─e8ebe45d-1e7d-433c-93cd-50407798e06e
 # ╟─7c344844-5e28-4d10-850b-10697ea64c68
 # ╟─e24ba873-cbb3-4823-be27-e9dfb2d8db89
 # ╟─7286c17d-87e2-44a1-8a31-ad0d77e24838
@@ -288,6 +291,7 @@ end
 # ╟─cf940b57-849f-4976-920f-37acc38abc97
 # ╟─91772531-105c-4ce8-aad3-5f3bd2b5b83c
 # ╟─9326b201-85c7-4aaa-8df3-2bd9eec76d6e
+# ╟─604da907-49cd-4027-9b7e-285908d68af7
 # ╟─80891328-ab47-4b56-a482-ec35cb763add
 # ╟─a7d3259b-f540-4e63-bd80-002087535434
 # ╟─de10fa0e-2f67-41f5-bcaa-e4fbc2c24582

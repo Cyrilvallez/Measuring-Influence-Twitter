@@ -36,7 +36,8 @@ function observe(df::DataFrame, pipeline::Pipeline)
 
     time_series = observe(df, pipeline.time_series_generator)
     influence_graphs = observe(time_series, pipeline.influence_grapher)
-    influence_cascades = observe(influence_graphs, pipeline.influence_cascade_generator)
+    # Broadcast to all influence graphs since this was defined for just one graph for simplicity
+    influence_cascades = observe.(influence_graphs, Ref(pipeline.influence_cascade_generator))
 
     return influence_graphs, influence_cascades
 

@@ -7,6 +7,7 @@ import Pkg
 packages_with_version = [
     ("CSV", "0.10.4"),
     ("JSON", "0.21.3"),
+    ("JLD2", "0.4.29"),
     ("CausalityTools", "1.4.1"),
     ("Colors", "0.12.8"),
     ("DataFrames", "1.3.6"),
@@ -26,8 +27,6 @@ packages_with_version = [
     ("PlutoUI", "0.7.43"),
     ("PlutoPlotly", "0.3.4"),
     ("IJulia", "1.23.3"),
-    # TODO : remove Revise when pushing final versions
-    ("Revise", "3.4.0"),
 ]
 
 packages_without_version = [
