@@ -1,1 +1,0 @@
-("climate change" OR #climatechange OR #climate_change OR "climate crisis" OR #climatecrisis OR #climate_crisis OR "climate emergency" OR #climateemergency OR #climate_emergency OR "global warming" OR #globalwarming OR #global_warming) (url:"permianproud.com" OR url:"foxnews.com" OR url:"cnn.com" OR url:"greenpeace.org")
