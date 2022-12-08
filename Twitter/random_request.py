@@ -9,6 +9,7 @@ Created on Wed Dec  7 16:27:46 2022
 from datetime import datetime, date, timedelta
 import os
 import json
+import argparse
 
 import request
 import utils
@@ -58,6 +59,9 @@ def random_queries(folder_name:str, query_file:str, N_days:int, left_lim: date, 
     if folder_name[-1] != '/':
         folder_name += '/'
         
+    if folder_prefix[-1] != '/':
+        folder_prefix += '/'
+        
     os.makedirs(folder_prefix + folder_name, exist_ok=True)
     
     # Load the query file
@@ -99,3 +103,46 @@ def random_queries(folder_name:str, query_file:str, N_days:int, left_lim: date, 
             filehandle.write(f'{json.dumps(log)}\n\n')
     
         request.query_API(filename, query, start, end, max_per_page, max_pages)
+        
+        
+        
+
+if __name__ == '__main__':
+    
+    parser = argparse.ArgumentParser(description='Twitter random API call')
+    parser.add_argument('folder', type=str,
+                        help=('A name for the output folder where we will store the results.'
+                              ' Please do NOT provide full path, only the last part, or'
+                              ' set --folder_prefix to "" (null string).'))
+    parser.add_argument('query', type=str,
+                        help='Path to the filename containing the query.')
+    parser.add_argument('N_days', type=int,
+                        help='The number of random days to pick')
+    parser.add_argument('--left_lim', type=date.fromisoformat, default='2020-01-01',
+                        help=('The left limit for the interval in which to pick random days (YYYY-MM-DD).'
+                              ' The default is 2020-01-01.'))
+    parser.add_argument('--right_lim', type=date.fromisoformat, default='2022-12-01',
+                        help=('The right limit for the interval in which to pick random days (YYYY-MM-DD).'
+                              ' The default is 2022-01-01.'))
+    parser.add_argument('--max_per_page', type=int, default=50,
+                        help='Max number of results per API call. The default is 50.')
+    parser.add_argument('--max_pages', type=int, default=-1,
+                        help='Max number of API calls. Give `-1` for no limit.')
+    parser.add_argument('--verbose', type=str, default='True', choices=['True', 'False'],
+                        help='Whether to write some summary to standard output. The default is True')
+    parser.add_argument('--folder_prefix', type=str, default='../Data/Twitter/',
+                        help='Prefix to the path to the output files (the full path will be folder_prefix + folder.')
+    args = parser.parse_args()
+    
+    folder_name = args.folder
+    query_file = args.query
+    N_days = args.N_days
+    left = args.left_lim
+    right = args.right_lim
+    max_per_page = args.max_per_page
+    max_pages = args.max_pages
+    verbose = True if args.verbose == 'True' else False
+    folder_prefix = args.folder_prefix
+    
+    random_queries(folder_name, query_file, N_days, left, right, max_per_page, max_pages,
+                   verbose, folder_prefix)

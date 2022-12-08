@@ -210,3 +210,19 @@ foo = ('A filename corresponding to the same folder and date already exists.'
                   ' Choose another folder name.')
 
 
+#%%
+
+import argparse
+from datetime import date
+
+parser = argparse.ArgumentParser(description='Twitter random API call')
+parser.add_argument('--left_lim', type=date.fromisoformat, default='2020-01-01',
+                    help=('The left limit for the interval in which to pick random days (YYYY-MM-DD).'
+                          ' The default is 2020-01-01.'))
+args = parser.parse_args()
+
+
+
+
+
+

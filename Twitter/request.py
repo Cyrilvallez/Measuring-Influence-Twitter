@@ -151,9 +151,9 @@ if __name__ == "__main__":
     parser.add_argument('end_time', type=datetime.fromisoformat,
                         help='The end date for the tweets (YYYY-MM-DDTHH:MM:SS) in UTC timezone.')
     parser.add_argument('--max_per_page', type=int, default=50,
-                        help='Max number of results per API call.')
+                        help='Max number of results per API call. The default is 50.')
     parser.add_argument('--max_pages', type=int, default=-1,
-                        help='Max number of API calls. Give `-1` for no limit.')
+                        help='Max number of API calls. Give `-1` for no limit. The default is -1.')
     args = parser.parse_args()
     
     filename = args.filename
