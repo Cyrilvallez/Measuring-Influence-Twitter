@@ -19,7 +19,9 @@ packages_with_version = [
     ("SimpleWeightedGraphs", "1.2.1"),
     ("GraphPlot", "0.5.2"),
     ("Plots", "1.34.4"),
+    ("Conda", "1.7.0"),
     ("PyPlot", "2.11.0"),
+    ("Seaborn", "1.1.1"),
     ("PlotlyBase", "0.8.19"),
     ("PlotlyJS", "0.18.9"),
     ("WordCloud", "0.10.7"),
@@ -27,6 +29,7 @@ packages_with_version = [
     ("PlutoUI", "0.7.43"),
     ("PlutoPlotly", "0.3.4"),
     ("IJulia", "1.23.3"),
+    ("Reexport", "1.2.2"),
 ]
 
 packages_without_version = [
@@ -36,16 +39,22 @@ packages_without_version = [
 
 for (package, version) in packages_with_version
 
-    # We need to set this prior to installing PyPlot
-    if package == "PyPlot"
-        ENV["PYTHON"] = ""
-    end
+    # # We need to set this prior to installing PyPlot
+    # if package == "PyPlot"
+    #     ENV["PYTHON"] = ""
+    # end
 
     Pkg.add(name=package, version=version)
 
-    # First import will trigger installation of matplotlib inside julia
-    if package == "PyPlot"
-        import PyPlot
+    # # First import will trigger installation of matplotlib inside julia
+    # if package == "PyPlot"
+    #     import PyPlot
+    # end
+
+    if package == "Conda"
+        import Conda
+        Conda.add("matplotlib=3.6.2")
+        Conda.add("seaborn=0.12.1")
     end
 
 end

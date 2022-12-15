@@ -45,5 +45,6 @@ end
 partition_options = [ 
     no_partition,
 	sentiment,
-	cop_26_dates
+	cop_26_dates,
+	cop_27_dates
 ]

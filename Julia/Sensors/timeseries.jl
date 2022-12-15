@@ -13,6 +13,7 @@ struct TimeSeriesGenerator
     standardize::Bool
 end
 
+
 function TimeSeriesGenerator(time_interval::Period; standardize::Bool = true)
     return TimeSeriesGenerator(time_interval, :created_at, :actor, :action, :partition, standardize)
 end

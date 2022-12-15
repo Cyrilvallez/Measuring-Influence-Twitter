@@ -7,15 +7,16 @@ Created on Wed Oct 26 09:32:25 2022
 """
 
 import pandas as pd
+import nltk
 import json
 import urlexpander
 import tldextract
 import os
 import argparse
 from tqdm import tqdm
-from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
-ANALYZER = SentimentIntensityAnalyzer()
+nltk.download('vader_lexicon', quiet=True)
+ANALYZER = nltk.sentiment.vader.SentimentIntensityAnalyzer()
 
 # =============================================================================
 # Parsing and processing of twitter attributes

@@ -1,14 +1,9 @@
-using CausalityTools
+using CausalityTools, DataStructures
 using StatsBase: minimum
 import Random
+import Base: ==
 
 include("../Utils/entropy.jl")
-
-#TODO : This is possible to optimize causality measures needing embeddings, as in the current state
-# we are computing the same embeddings again and again for each actors and actions instead of precomputing them
-# i.e, we loop 2 times actors and actions and recompute the embeddings each time instead of looping one time for the embeddings, 
-# and then looping 2 times using the precomputed embeddingds
-
 
 # Those will be used in an "enum" fashion for dispatch (they do not hold any
 # fields, only their name are used)
@@ -20,6 +15,15 @@ struct TransferEntropy <: CausalityFunction end
 
 struct InfluenceGraphGenerator 
     causal_function::Function
+    # Dump some parameters so we can have access to them later
+    parameters::OrderedDict
+end
+
+
+# The presence of the dict in InfluenceGraphGenerator force us to redefine equality (the default provided
+# does not work anymore as Dict are mutable and a === b is false for mutable)
+function ==(a::InfluenceGraphGenerator, b::InfluenceGraphGenerator)
+    return a.causal_function == b.causal_function && a.parameters == b.parameters
 end
 
 
@@ -29,7 +33,8 @@ Default constructor using the custom version of transfer entropy.
 """
 function InfluenceGraphGenerator()
     func(x, y) = TE(Int.(x .> 0), Int.(y .> 0))
-    return InfluenceGraphGenerator(func)
+    params = OrderedDict("function" => "TE")
+    return InfluenceGraphGenerator(func, params)
 end
 
 
@@ -45,9 +50,9 @@ Note : the distances will be computed using Euclidean distance.
 
 """
 function InfluenceGraphGenerator(::Type{SMeasure}; K::Int = 3, dx::Int = 5, dy::Int = 5, τx::Int = 1, τy::Int = 1)
-    # We need the conversion to float because s_measure does not support Int (see NearestNeighbors.jl/src/knn.jl line 31 -> seems to be unwanted behavior)
-    func(x, y) = s_measure(float(x), float(y), K=K, dx=dx, dy=dy, τx=τx, τy=τy)
-    return InfluenceGraphGenerator(func)
+    func(x, y) = s_measure(x, y, K=K, dx=dx, dy=dy, τx=τx, τy=τy)
+    params = OrderedDict("function" => "SMeasure", "K" => K, "dx" => dx, "dy" => dy, "tau_x" => τx, "tau_y" => τy)
+    return InfluenceGraphGenerator(func, params)
 end
 
 
@@ -74,13 +79,16 @@ function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::U
         measure = (x,y) -> func(x,y) < alpha ? 1 : 0
     end
 
-    return InfluenceGraphGenerator(measure)
+    params = OrderedDict("function" => "JointDistanceDistribution", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "seed" => seed, "alpha" => alpha, "B" => B, "d" => d, "tau" => τ)
+
+    return InfluenceGraphGenerator(measure, params)
 end
 
 
 function InfluenceGraphGenerator(::Type{TransferEntropy}; estimator = Kraskov(k=3))
-    func(x, y) = transferentropy(float(x), float(y), estimator)
-    return InfluenceGraphGenerator(func)
+    func(x, y) = transferentropy(x, y, estimator)
+    params = OrderedDict("function" => "TransferEntropy", "estimator" => string(estimator))
+    return InfluenceGraphGenerator(func, params)
 end
 
 

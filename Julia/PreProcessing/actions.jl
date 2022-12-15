@@ -9,24 +9,6 @@ NEWS_TABLE_RAW = PROJECT_FOLDER * "/Data/news_table-v1-UT60-FM5.csv"
 NEWS_TABLE_PROCESSED = PROJECT_FOLDER * "/Data/news_table_clean.csv"
 
 
-"""
-Return the TUFM classification from the news table.
-"""
-function trust_popularity_score_old(df::DataFrame)
-
-	news = CSV.read(NEWS_TABLE_PROCESSED, DataFrame, header=1)
-	df."full_domain" = [[domain[i] * "." * suffix[i] for i = 1:length(domain)] for (domain, suffix) in zip(df."domain", df."domain_suffix")]
-
-	# Find score associated to urls contained in the news outlets
-    df.action = classify.(df."full_domain", Ref(news))
-	# remove news source not matching one of the source news table
-    df = df[.!ismissing.(df.action), :]
-	# Remove the Union{missing, String}
-	df.action = String.(df.action)
-	return df
-end
-
-
 
 """
 Return only the trustworthy/untrustworthy portion of the TUFM classification from the news table.
@@ -67,7 +49,6 @@ end
 
 
 action_options = [
-	trust_popularity_score_old,
 	trust_popularity_score,
 	trust_score
 ]

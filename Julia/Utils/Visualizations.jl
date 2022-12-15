@@ -5,14 +5,16 @@ using PlotlyBase, GraphPlot, Colors, WordCloud
 using StatsBase: mean, countmap, proportionmap
 using Printf, Logging
 import PyPlot as plt
+import Seaborn as sns
 
-# need using ..Sensors here (see https://discourse.julialang.org/t/writing-functions-for-types-defined-in-another-module/31895/4)
-include("../Sensors/Sensors.jl")
+# need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors: InfluenceCascade
+using ..Helpers: make_simplifier
 
 export plot_cascade_sankey,
        plot_graph,
        plot_graph_map,
+       plot_betweenness_centrality,
        plot_edge_types,
        plot_actors_per_level,
        plot_actor_frequency,
@@ -133,12 +135,22 @@ end
 
 
 """
-Plot the graph corresponding to the adjacency matrix adjacency, which is being simplified by simplifier.
+Plot the graph corresponding to the matrix adjacency, for one type of edge (edges are matrices).
 """
-function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame, simplifier::Function)
+function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any edge")
 
-    # Actors are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
-    node_labels = sort(unique(df."actor"))
+    # Actors and actions are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
+    node_labels = sort(unique(df.actor))
+    actions = sort(unique(df.action))
+
+    edge_types = [string(n1, " to ", n2) for n1 in actions for n2 in actions]
+    push!(edge_types, "Any Edge");
+
+    if !(edge_type in edge_types)
+        throw(ArgumentError("The `edge_type` provided is not valid. It should be one of $edge_types."))
+    end
+
+    simplifier = make_simplifier(edge_type, cuttoff, edge_types)
 
     # reduce the adjacency matrix containing edge matrices to simple adjacency matrix depending on which 
     # connection we are interested in in the edge matrices
@@ -150,8 +162,20 @@ function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame, simplifie
     connected_vertices = [i for i in vertices(g) if (outdegrees[i] > 0 || indegrees[i] > 0)]
     connected_graph, vmap = induced_subgraph(g, connected_vertices)
     connected_vertices_labels = node_labels[vmap]
+
+    # We draw aggregate actors as red nodes, and individuals as blue nodes
+    regex = r"^[0-9]+ to [0-9]+ followers$"
+    colors = Vector{RGB}(undef, length(connected_vertices_labels))
+    for (i, label) in enumerate(connected_vertices_labels)
+        if occursin(regex, label)
+            colors[i] = colorant"red"
+        else
+            colors[i] = colorant"blue"
+        end
+    end
+
     # Plot only connected nodes
-    gplot(connected_graph, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
+    gplot(connected_graph, nodefillc=colors, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
 
 end
 
@@ -167,6 +191,11 @@ function plot_edge_types(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::
     # Actions and partitions are represented in the order they appear in sort(unique(df)) in the adjacency matrix
     actions = sort(unique(df.action))
     partitions = sort(unique(df.partition))
+
+    # In this case remove default value
+    if length(partitions) != 3 && reorder == [2,3,1]
+        reorder = nothing
+    end
 
     N_actions = length(actions)
     N_partitions = length(partitions)
@@ -217,6 +246,60 @@ function plot_edge_types(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::
 end
 
 
+function plot_betweenness_centrality(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::DataFrame, cuttoff::Real = 0.0; width=1., cut=0,
+    save::Bool = false, filename = nothing, reorder = [2,3,1])
+
+    if save && isnothing(filename)
+        throw(ArgumentError("You must provide a filename if you want to save the figure."))
+    end
+
+    # Actors and partitions are represented in the order they appear in sort(unique(df)) in the adjacency matrix
+    actors = sort(unique(df."actor"))
+    partitions = sort(unique(df.partition))
+
+    # In this case remove default value
+    if length(partitions) != 3 && reorder == [2,3,1]
+        reorder = nothing
+    end
+
+    # Create simple graphs by removing weights not needed for the centrality
+    simplifier = x -> maximum(x) > cuttoff
+    simple_graphs = [SimpleDiGraph(simplifier.(graph)) for graph in influence_graphs]
+
+    betweenness = [betweenness_centrality(graph, normalize=true) for graph in simple_graphs]
+
+    if !isnothing(reorder)
+        partitions = partitions[reorder]
+        betweenness = betweenness[reorder]
+    end
+
+    # plt.figure()
+    # for i = 1:length(partitions)
+    #     plt.plot(1:length(actors), betweenness[i], label=partitions[i])
+    # end
+    # plt.xlabel("Node index")
+    # plt.ylabel("Betweenness centrality")
+    # plt.legend()
+    # plt.grid()
+    # if save
+    #     plt.savefig(filename, bbox_inches="tight", dpi=400)
+    # end
+
+    plt.figure()
+    sns.violinplot(betweenness, width=width, cut=cut)
+    plt.xlabel("Partition")
+    plt.ylabel("Betweenness centrality")
+    ticks, _ = plt.xticks()
+    plt.xticks(ticks, labels=partitions)
+    plt.grid()
+    if save
+        plt.savefig(filename, bbox_inches="tight", dpi=400)
+    end
+
+    return plt.gcf()
+end
+
+
 
 function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame; split_by_partition::Bool = true, width::Real = 0.25,
     inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1])
@@ -231,6 +314,11 @@ function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascad
         # Pad with zeros so that they all have the same length
         actor_levels = [vec([x... [0. for i = (length(x)+1):max_level]...]) for x in actor_levels]
         labels = sort(unique(df.partition))
+
+        # In this case remove default value
+        if length(labels) != 3 && reorder == [2,3,1]
+            reorder = nothing
+        end
 
         # Optionally reorder the bars in the plot
         if !isnothing(reorder)
@@ -484,6 +572,9 @@ Return the mean number of actors of all the influence cascades, at each level.
 """
 function mean_actors_per_level(influence_cascades::Vector{InfluenceCascade})
     N = length(influence_cascades)
+    if N == 0
+        return []
+    end
     level_max = maximum([length(cascade.actors_per_level) for cascade in influence_cascades])
     mean_actor = zeros(level_max)
     for i = 1:level_max

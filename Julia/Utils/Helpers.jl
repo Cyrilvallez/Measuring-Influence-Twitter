@@ -3,6 +3,9 @@ module Helpers
 using DataFrames
 import JSON, JLD2
 
+# need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
+using ..Sensors, ..PreProcessing
+
 export load_json, make_simplifier, save_data, load_data
 
 """
@@ -66,10 +69,38 @@ end
 
 
 """
+Easily save the influences graphs and cascades.
+"""
+function save_data(influence_graphs::Vector{Matrix{Matrix{Float64}}}, influence_cascades::Vector{Vector{InfluenceCascade}},
+    filename::AbstractString; extension::AbstractString = "jld2")
+   data = Dict("influence_graphs" => influence_graphs, "influence_cascades" => influence_cascades)
+   save_data(data, filename, extension=extension)
+end
+
+
+"""
+Easily save the influences graphs and cascades, and the preprocessing agents and pipeline used to generate them.
+"""
+function save_data(influence_graphs::Vector{Matrix{Matrix{Float64}}}, influence_cascades::Vector{Vector{InfluenceCascade}}, agents::PreProcessingAgents,
+    pipeline::Pipeline, filename::AbstractString; extension::AbstractString = "jld2")
+   data = Dict("influence_graphs" => influence_graphs, "influence_cascades" => influence_cascades, "agents" => agents, "pipeline" => pipeline)
+   save_data(data, filename, extension=extension)
+end
+
+
+"""
 Conveniently load data from file.
 """
 function load_data(filename::AbstractString)
-    return JLD2.load(filename)["data"]
+    data = JLD2.load(filename)["data"]
+    # Check if this was saved as a Dict containing influence results
+    if typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["influence_cascades", "influence_graphs"]
+        return data["influence_graphs"], data["influence_cascades"]
+    elseif typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["agents", "influence_cascades", "influence_graphs", "pipeline"]
+        return data["influence_graphs"], data["influence_cascades"], data["agents"], data["pipeline"]
+    else
+        return data
+    end
 end
 
 

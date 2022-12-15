@@ -123,7 +123,7 @@ if __name__ == '__main__':
                               ' The default is 2020-01-01.'))
     parser.add_argument('--right_lim', type=date.fromisoformat, default='2022-12-01',
                         help=('The right limit for the interval in which to pick random days (YYYY-MM-DD).'
-                              ' The default is 2022-01-01.'))
+                              ' The default is 2022-12-01.'))
     parser.add_argument('--max_per_page', type=int, default=50,
                         help='Max number of results per API call. The default is 50.')
     parser.add_argument('--max_pages', type=int, default=-1,
