@@ -52,7 +52,7 @@ end
 
 
 
-function observe(x::Vector{InfluenceCascade}, cc::CascadeClusterer)
+function observe(x::CascadeCollection, cc::CascadeClusterer)
     vecs = cc.embed.(x)
     clusters = cc.cluster(vecs)
     return clusters

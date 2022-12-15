@@ -8,7 +8,7 @@ import PyPlot as plt
 import Seaborn as sns
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
-using ..Sensors: InfluenceCascade
+using ..Sensors: SingleInfluenceGraph, InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
 using ..Helpers: make_simplifier
 
 export plot_cascade_sankey,
@@ -137,7 +137,7 @@ end
 """
 Plot the graph corresponding to the matrix adjacency, for one type of edge (edges are matrices).
 """
-function plot_graph(adjacency::Matrix{Matrix{Float64}}, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any edge")
+function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any edge")
 
     # Actors and actions are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
     node_labels = sort(unique(df.actor))
@@ -181,7 +181,7 @@ end
 
 
 
-function plot_edge_types(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::DataFrame, cuttoff::Real = 0.0; width::Real = 0.25,
+function plot_edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real = 0.0; width::Real = 0.25,
     inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder = [2,3,1])
 
     if save && isnothing(filename)
@@ -246,7 +246,7 @@ function plot_edge_types(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::
 end
 
 
-function plot_betweenness_centrality(influence_graphs::Vector{Matrix{Matrix{Float64}}}, df::DataFrame, cuttoff::Real = 0.0; width=1., cut=0,
+function plot_betweenness_centrality(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real = 0.0; width=1., cut=0,
     save::Bool = false, filename = nothing, reorder = [2,3,1])
 
     if save && isnothing(filename)
@@ -301,7 +301,7 @@ end
 
 
 
-function plot_actors_per_level(influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame; split_by_partition::Bool = true, width::Real = 0.25,
+function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFrame; split_by_partition::Bool = true, width::Real = 0.25,
     inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1])
 
     if save && isnothing(filename)
@@ -570,15 +570,15 @@ end
 """
 Return the mean number of actors of all the influence cascades, at each level.
 """
-function mean_actors_per_level(influence_cascades::Vector{InfluenceCascade})
-    N = length(influence_cascades)
+function mean_actors_per_level(cascade_collection::CascadeCollection)
+    N = length(cascade_collection)
     if N == 0
         return []
     end
-    level_max = maximum([length(cascade.actors_per_level) for cascade in influence_cascades])
+    level_max = maximum([length(cascade.actors_per_level) for cascade in cascade_collection])
     mean_actor = zeros(level_max)
     for i = 1:level_max
-        mean_ = sum([cascade.actors_per_level[i] for cascade in influence_cascades if length(cascade.actors_per_level) >= i])
+        mean_ = sum([cascade.actors_per_level[i] for cascade in cascade_collection if length(cascade.actors_per_level) >= i])
         mean_actor[i] = mean_ / N
     end
 
@@ -714,7 +714,7 @@ end
 """
 Plot the mean number of actors of all the influence cascades, at each level.
 """
-function plot_actors_per_level_old(influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame; split_by_partition::Bool = true, save::Bool = false, filename = nothing)
+function plot_actors_per_level_old(influence_cascades::InfluenceCascades, df::DataFrame; split_by_partition::Bool = true, save::Bool = false, filename = nothing)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))

@@ -1,8 +1,7 @@
 module Engine
 
-using DataFrames, Dates, DataStructures
+using DataFrames
 using Reexport
-import YAML
 
 include("../Sensors/Sensors.jl")
 include("../PreProcessing/PreProcessing.jl")
@@ -12,22 +11,31 @@ include("../Utils/Visualizations.jl")
 # Load the modules and reexport them so that they are available when importing only Engine (this removes the need to include every file in the correct order)
 @reexport using .Sensors, .PreProcessing, .Visualizations, .Helpers
 
-export run
+export run_experiment
 
-function run(data::DataFrame, agents::PreProcessingAgents, pipeline::Pipeline, save::Bool = false, filename = nothing)
+RESULT_FOLDER = PreProcessing.PROJECT_FOLDER * "/Results"
 
-    if save && isnothing(filename)
-        throw(ArgumentError("You must provide a filename if you want to save the data."))
+
+"""
+Run a single experiment an log the results.
+"""
+function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipeline::Pipeline; save::Bool = true, experiment_name = nothing)
+
+    if save && isnothing(experiment_name)
+        throw(ArgumentError("You must provide an experiment name if you want to save the data."))
     end
 
+    folder = verify_experiment_name(experiment_name)
+
     # Pre-process the data (partitions, actions and actors)
-    df, partitions, actions, actors = preprocessing(data, agents)
+    df, _, _, _ = preprocessing(data, agents)
 
     # Performs all computations (create time-series, compute graphs, compute influence cascades)
     influence_graphs, influence_cascades = observe(df, pipeline)
 
     if save
-        save_data(influence_graphs, influence_cascades, agents, pipeline, filename)
+        save_data(influence_graphs, influence_cascades, agents, pipeline, folder * "data.jld2")
+        log_experiment(agents, pipeline, folder * "experiment.yml")
     end
 
     return influence_graphs, influence_cascades
@@ -35,29 +43,57 @@ function run(data::DataFrame, agents::PreProcessingAgents, pipeline::Pipeline, s
 end
 
 
-function log_experiment(agents::PreProcessingAgents, pipeline::Pipeline, filename::AbstractString)
+"""
+Run multiple experiments and log all results.
+"""
+function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines::Vector{Pipeline}; save::Bool = true, experiment_name = nothing)
 
-    dic = OrderedDict()
+    if save && isnothing(experiment_name)
+        throw(ArgumentError("You must provide an experiment name if you want to save the data."))
+    end
 
-    dic["preprocessing"] = OrderedDict()
-    dic["time_series"] = OrderedDict()
-    dic["graphs"] = OrderedDict()
-    dic["influence_cascades"] = OrderedDict()
+    folder = verify_experiment_name(experiment_name)
 
-    dic["preprocessing"]["partition"] = string(agents.partition_function)
-    dic["preprocessing"]["action"] = string(agents.action_function)
-    dic["preprocessing"]["actor"] = string(agents.actor_function)
+    # Pre-process the data (partitions, actions and actors)
+    df, _, _, _ = preprocessing(data, agents)
 
-    dic["time_series"]["time_resolution"] = pipeline.time_series_generator.time_interval
-    dic["time_series"]["standardize"] = pipeline.time_series_generator.standardize
+    # Performs all computations (create time-series, compute graphs, compute influence cascades)
+    # Note that most (all) of the time the difference between pipelines will be for graph creation, thus
+    # we will recompute the same time-series each time. However, the time needed is negligible compared to creating the graphs
+    multiple_influence_graphs = Vector{InfluenceGraphs}(undef, length(pipelines))
+    multiple_influence_cascades = Vector{InfluenceCascades}(undef, length(pipelines))
+    for (i, pipeline) in enumerate(pipelines)
+        influence_graphs, influence_cascades = observe(df, pipeline)
+        multiple_influence_cascades[i] = influence_graphs
+        multiple_influence_graphs[i] = influence_cascades
+    end
 
-    dic["graphs"] = pipeline.influence_graph_generator.parameters
+    if save
+        save_data(multiple_influence_graphs, multiple_influence_cascades, agents, pipelines, folder * "data.jld2")
+        log_experiment(agents, pipelines, folder * "experiment.yml")
+    end
 
-    dic["influence_cascades"]["cuttoff"] = pipeline.influence_cascade_generator.cuttoff
-    dic["influence_cascades"]["normalize"] = pipeline.influence_cascade_generator.normalize
+    return multiple_influence_graphs, multiple_influence_cascades
 
-    YAML.write_file(filename, dic)
+end
 
+
+"""
+Format and verify the validity of the experiment name to avoid overwriting existing data.
+"""
+function verify_experiment_name(experiment_name)
+
+    if experiment_name[end] != '/'
+        experiment_name *= '/'
+    end
+
+    experiment_folder = RESULT_FOLDER * '/' * experiment_name
+    if isdir(experiment_folder)
+        throw(ArgumentError("This experiment name is already taken. Please choose another one."))
+    end
+    # Create the directory
+    mkdir(experiment_folder)
+    return experiment_folder
 end
 
 
@@ -88,7 +124,7 @@ function dataset_description(df::DataFrame; save::Bool = false, save_folder::Abs
 end
 
 
-function result_analysis(influence_graphs::Vector{Matrix{Matrix{Float64}}}, influence_cascades::Vector{Vector{InfluenceCascade}}, df::DataFrame,
+function result_analysis(influence_graphs::InfluenceGraphs, influence_cascades::InfluenceCascades, df::DataFrame,
     save::Bool = false, save_folder::AbstractString = "../Results/")
 
     if save_folder[end] != '/'

@@ -1,6 +1,11 @@
 using DataStructures
 import Base: ==
 
+# Convenient type aliases
+const CascadeCollection = Vector{InfluenceCascade}
+const InfluenceCascades = Vector{CascadeCollection}
+
+# Used only as an indicator for dispatch
 struct WithoutCuttoff end
 
 struct InfluenceCascadeGenerator 
@@ -43,7 +48,7 @@ end
 """
 Return the influence cascades from the adjacency matrix containing the transfer entropy per actions.
 """
-function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
+function observe(data::SingleInfluenceGraph, icg::InfluenceCascadeGenerator)
 
     influencers = Vector{Int}()
     for (j, col) in enumerate(eachcol(data))
@@ -65,7 +70,7 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
         end
     end
 
-    influence_cascades = Vector{InfluenceCascade}()
+    cascade_collection = CascadeCollection()
     M = size(data[1,1], 1)
 
     for influencer in influencers
@@ -130,17 +135,17 @@ function observe(data::Matrix{Matrix{Float64}}, icg::InfluenceCascadeGenerator)
         end
         # Create the InfluenceCascade object and add it to the list
         influence_cascade = InfluenceCascade(cascade, actor_indices, actors_per_level, influencer, icg.normalize)
-        push!(influence_cascades, influence_cascade)
+        push!(cascade_collection, influence_cascade)
     end
     
     if icg.normalize
         # Normalize the cascades by their total influence values
-        for cascade in influence_cascades
+        for cascade in cascade_collection
             normalize_cascade(cascade)
         end
     end
     
-    return influence_cascades
+    return cascade_collection
 end
 
 

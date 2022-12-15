@@ -5,8 +5,8 @@ using Dates
 import Base: ==
 
 export TimeSeriesGenerator, InfluenceGraphGenerator, InfluenceCascadeGenerator, Pipeline
-export SMeasure, JointDistanceDistribution, TransferEntropy
-export InfluenceCascade, WithoutCuttoff
+export SingleInfluenceGraph, InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
+export SMeasure, JointDistanceDistribution, TransferEntropy, WithoutCuttoff
 export observe
 
 include("timeseries.jl")

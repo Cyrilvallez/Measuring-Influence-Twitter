@@ -5,6 +5,11 @@ import Base: ==
 
 include("../Utils/entropy.jl")
 
+# Convenient type aliases
+const SingleInfluenceGraph = Matrix{Matrix{Float64}}
+const InfluenceGraphs = Vector{SingleInfluenceGraph}
+
+
 # Those will be used in an "enum" fashion for dispatch (they do not hold any
 # fields, only their name are used)
 abstract type CausalityFunction end
@@ -102,13 +107,13 @@ function observe(time_series::Vector{Vector{Matrix{Float64}}}, ig::InfluenceGrap
     N_actions = size(time_series[1][1])[2]
 
     # Initialize final output
-    adjacencies = Vector{Matrix{Matrix{Float64}}}(undef, length(time_series))
+    adjacencies = InfluenceGraphs(undef, length(time_series))
 
     # Iterate on partitions
     for (m, partition) in enumerate(time_series)
 
         # Initialize adjacency matrix for the partition
-        partitionwise_adjacency = Matrix{Matrix{Float64}}(undef, length(partition), length(partition))
+        partitionwise_adjacency = SingleInfluenceGraph(undef, length(partition), length(partition))
 
         # Iterate 2 times on all actors
         for i = 1:length(partition), j = 1:length(partition)
