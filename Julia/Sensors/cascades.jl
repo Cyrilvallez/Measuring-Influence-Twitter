@@ -1,9 +1,6 @@
 using DataStructures
 import Base: ==
 
-# Convenient type aliases
-const CascadeCollection = Vector{InfluenceCascade}
-const InfluenceCascades = Vector{CascadeCollection}
 
 # Used only as an indicator for dispatch
 struct WithoutCuttoff end
@@ -42,6 +39,12 @@ function ==(a::InfluenceCascade, b::InfluenceCascade)
     return ((a.cascade == b.cascade) && (a.actor_edges == b.actor_edges) && (a.actors_per_level == b.actors_per_level)
         && (a.root == b.root) && (a.is_normalized == b.is_normalized))
 end
+
+
+
+# Convenient type aliases
+const CascadeCollection = Vector{InfluenceCascade}
+const InfluenceCascades = Vector{CascadeCollection}
 
 
 

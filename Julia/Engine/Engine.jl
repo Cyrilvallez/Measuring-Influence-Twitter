@@ -64,8 +64,8 @@ function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines:
     multiple_influence_cascades = Vector{InfluenceCascades}(undef, length(pipelines))
     for (i, pipeline) in enumerate(pipelines)
         influence_graphs, influence_cascades = observe(df, pipeline)
-        multiple_influence_cascades[i] = influence_graphs
-        multiple_influence_graphs[i] = influence_cascades
+        multiple_influence_graphs[i] = influence_graphs
+        multiple_influence_cascades[i] = influence_cascades
     end
 
     if save
