@@ -6,7 +6,7 @@ import Base: ==
 
 export TimeSeriesGenerator, InfluenceGraphGenerator, InfluenceCascadeGenerator, Pipeline
 export SingleInfluenceGraph, InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
-export SMeasure, JointDistanceDistribution, TransferEntropy, WithoutCuttoff
+export SimpleTE, SMeasure, JointDistanceDistribution, TransferEntropy, WithoutCuttoff
 export observe
 
 include("timeseries.jl")

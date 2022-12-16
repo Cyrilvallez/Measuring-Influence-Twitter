@@ -1,12 +1,26 @@
 module Helpers
 
-using DataFrames, DataStructures
+using DataFrames, DataStructures, Dates
+using StatsBase: sample
 import JSON, JLD2, YAML
+import Random
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors, ..PreProcessing
 
-export load_json, make_simplifier, save_data, load_data, log_experiment
+export load_dataset, make_simplifier, save_data, load_data, log_experiment
+export COP26, COP27, RandomDays
+
+
+DATA_FOLDER = PreProcessing.PROJECT_FOLDER * "/Data/Twitter"
+
+# Those will be used in an "enum" fashion for dispatch (they do not hold any
+# fields, only their name are used)
+abstract type Dataset end
+struct COP26 <: Dataset end
+struct COP27 <: Dataset end
+struct RandomDays <: Dataset end
+
 
 """
 Conveniently load a file containing lines of json objects into a DataFrame (or as a list of dictionaries).
@@ -22,6 +36,73 @@ function load_json(filename::String, to_df::Bool = true, skiprows::Int = 0)
         return dics
     end
 end
+
+
+
+"""
+Easily load a dataset from disk into a DataFrame.
+"""
+function load_dataset(::Type{T}; N_days::Int = 13) where T <: Dataset
+
+    if T == COP26
+        datafolder = DATA_FOLDER * "/COP26_processed_lightweight/"
+    elseif T == COP27
+        datafolder = DATA_FOLDER * "/COP27_processed_lightweight/"
+    elseif T == RandomDays 
+        datafolder = DATA_FOLDER * "/Random_days_processed_lightweight/"
+    end
+
+    datafiles = [file for file in readdir(datafolder) if occursin(".json", file)]
+
+    # Select only a few days randomly
+    if T == RandomDays
+        Random.seed!(1234)
+        indices = sample(1:length(datafiles), N_days, replace=false)
+        sort!(indices)
+        datafiles = datafiles[indices]
+    end
+
+    frames = [load_json(datafolder * file) for file in datafiles]
+    data = vcat(frames...)
+
+    # Artificially change the days 
+    if T == RandomDays
+        process_random_dataset!(data)
+    end
+
+    return data
+
+end
+
+
+
+"""
+Change the days of the random day dataset so that they are artificially consecutive.
+"""
+function process_random_dataset!(data::DataFrame)
+
+    # Convert string dates to datetimes 
+    to_datetime = x -> DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS")
+    data."created_at" = to_datetime.(data."created_at")
+
+    # Shift the random days in the data so that they are consecutive (but we don't touch the time part)
+    days = Date.(data.created_at)
+    unique_days = sort(unique(days))
+    proxy_dates = Vector{DateTime}(undef, length(data.created_at))
+    current_day = minimum(unique_days)
+
+    for day in unique_days
+        indices = findall(days .== day)
+        for ind in indices
+            proxy_dates[ind] = DateTime(current_day, Time(data.created_at[ind]))
+        end
+        current_day += Day(1)
+    end
+
+    data.created_at = proxy_dates
+
+end
+
 
 
 """
@@ -44,6 +125,10 @@ function make_simplifier(edge_type::String, cuttoff::Float64, edge_types::Vector
 end
 
 
+
+"""
+Format and check validity of a filename and extension. Create path if it does not exist.
+"""
 function verify_filename(filename::AbstractString, extension::AbstractString)
     split_on_dot = split(filename, '.')
 
@@ -65,6 +150,8 @@ function verify_filename(filename::AbstractString, extension::AbstractString)
 
 end
 
+
+
 """
 Conveniently store data to file (using hdf5 variant for julia).
 """
@@ -72,6 +159,7 @@ function save_data(data, filename::AbstractString; extension::AbstractString = "
     filename = verify_filename(filename, extension)
     JLD2.save(filename, "data", data)
 end
+
 
 
 """
@@ -84,6 +172,7 @@ function save_data(influence_graphs::InfluenceGraphs, influence_cascades::Influe
 end
 
 
+
 """
 Easily save the influences graphs and cascades, and the preprocessing agents and pipeline used to generate them.
 """
@@ -94,6 +183,7 @@ function save_data(influence_graphs::InfluenceGraphs, influence_cascades::Influe
 end
 
 
+
 """
 Easily save a collection of influences graphs and cascades, and the preprocessing agents and multiple pipelines used to generate them.
 """
@@ -102,6 +192,7 @@ function save_data(multiple_influence_graphs::Vector{InfluenceGraphs}, multiple_
    data = Dict("multiple_influence_graphs" => multiple_influence_graphs, "multiple_influence_cascades" => multiple_influence_cascades, "agents" => agents, "multiple_pipeline" => pipelines)
    save_data(data, filename, extension=extension)
 end
+
 
 
 """
@@ -120,6 +211,7 @@ function load_data(filename::AbstractString)
         return data
     end
 end
+
 
 
 """
@@ -156,6 +248,10 @@ function log_experiment(agents::PreProcessingAgents, pipeline::Pipeline, filenam
 end
 
 
+
+"""
+Log the parameters used for different experiments.
+"""
 function log_experiment(agents::PreProcessingAgents, pipelines::Vector{Pipeline}, filename::AbstractString; extension::AbstractString = "yml", dump::Bool = true)
 
     filename = verify_filename(filename, extension)
@@ -172,7 +268,6 @@ function log_experiment(agents::PreProcessingAgents, pipelines::Vector{Pipeline}
     return dic
 
 end
-
 
 
 

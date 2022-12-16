@@ -47,6 +47,9 @@ end
 
 
 
+"""
+Preprocess the dataset.
+"""
 function preprocessing(data::DataFrame, agents::PreProcessingAgents)
 
     # Remove possible rows without url domain, and convert string dates to datetimes
@@ -67,50 +70,15 @@ function preprocessing(data::DataFrame, agents::PreProcessingAgents)
 end
 
 
+
+"""
+Preprocess the dataset.
+"""
 function preprocessing(data::DataFrame, partition_function::Function, action_function::Function, actor_function::Function)
 
     # Creating the agents will perform necessary checks
     agents = PreProcessingAgents(partition_function, action_function, actor_function)
     return preprocessing(data, agents)
-
-end
-
-
-
-function preprocessing_random(data::DataFrame, agents::PreProcessingAgents)
-
-    # Convert string dates to datetimes if needed
-    if eltype(data."created_at") == String
-        to_datetime = x -> DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS")
-        data."created_at" = to_datetime.(data."created_at")
-    end
-
-    # Shift the random days in the data so that they are consecutive (but we don't touch the time part)
-    days = Date.(data.created_at)
-    unique_days = sort(unique(days))
-    proxy_dates = Vector{DateTime}(undef, length(data.created_at))
-    current_day = minimum(unique_days)
-
-    for day in unique_days
-        indices = findall(days .== day)
-        for ind in indices
-            proxy_dates[ind] = DateTime(current_day, Time(data.created_at[ind]))
-        end
-        current_day += Day(1)
-    end
-
-    data.created_at = proxy_dates
-
-    return preprocessing(data, agents)
-
-end
-
-
-function preprocessing_random(data::DataFrame, partition_function::Function, action_function::Function, actor_function::Function)
-
-    # Creating the agents will perform necessary checks
-    agents = PreProcessingAgents(partition_function, action_function, actor_function)
-    return preprocessing_random(data, agents)
 
 end
 

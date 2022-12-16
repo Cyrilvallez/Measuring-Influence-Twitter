@@ -13,6 +13,7 @@ const InfluenceGraphs = Vector{SingleInfluenceGraph}
 # Those will be used in an "enum" fashion for dispatch (they do not hold any
 # fields, only their name are used)
 abstract type CausalityFunction end
+struct SimpleTE <: CausalityFunction end
 struct SMeasure <: CausalityFunction end
 struct JointDistanceDistribution <: CausalityFunction end
 struct TransferEntropy <: CausalityFunction end
@@ -33,10 +34,10 @@ end
 
 
 """
-Default constructor using the custom version of transfer entropy.
+Constructor using the custom version of transfer entropy.
 
 """
-function InfluenceGraphGenerator()
+function InfluenceGraphGenerator(::Type{SimpleTE})
     func(x, y) = TE(Int.(x .> 0), Int.(y .> 0))
     params = OrderedDict("function" => "TE")
     return InfluenceGraphGenerator(func, params)
