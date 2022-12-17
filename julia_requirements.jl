@@ -7,6 +7,7 @@ import Pkg
 packages_with_version = [
     ("CSV", "0.10.4"),
     ("JSON", "0.21.3"),
+    ("YAML", "0.4.8"),
     ("JLD2", "0.4.29"),
     ("CausalityTools", "1.4.1"),
     ("Colors", "0.12.8"),
@@ -39,17 +40,12 @@ packages_without_version = [
 
 for (package, version) in packages_with_version
 
-    # # We need to set this prior to installing PyPlot
-    # if package == "PyPlot"
-    #     ENV["PYTHON"] = ""
-    # end
+    # We need to set this prior to installing PyPlot
+    if package == "PyPlot"
+        ENV["PYTHON"] = ""
+    end
 
     Pkg.add(name=package, version=version)
-
-    # # First import will trigger installation of matplotlib inside julia
-    # if package == "PyPlot"
-    #     import PyPlot
-    # end
 
     if package == "Conda"
         import Conda

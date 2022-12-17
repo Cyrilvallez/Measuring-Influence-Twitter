@@ -31,7 +31,7 @@ end
 
 function Pipeline(time_interval::Period, cuttoff::Float64)
     tsg = TimeSeriesGenerator(time_interval)
-    igg = InfluenceGraphGenerator()
+    igg = InfluenceGraphGenerator(SimpleTE)
     icg = InfluenceCascadeGenerator(cuttoff)
     return Pipeline(tsg, igg, icg)
 end
