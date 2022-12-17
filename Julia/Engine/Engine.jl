@@ -90,9 +90,10 @@ function verify_experiment_name(experiment_name)
     experiment_folder = RESULT_FOLDER * '/' * experiment_name
     if isdir(experiment_folder)
         throw(ArgumentError("This experiment name is already taken. Please choose another one."))
+    else
+        # Create the directory
+        mkpath(experiment_folder)
     end
-    # Create the directory
-    mkdir(experiment_folder)
     return experiment_folder
 end
 
