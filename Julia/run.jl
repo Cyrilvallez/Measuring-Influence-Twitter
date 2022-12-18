@@ -1,4 +1,4 @@
-using Dates
+using Dates, ProgressBars
 using StatsBase: sample
 import Random
 
@@ -47,6 +47,6 @@ icg = InfluenceCascadeGenerator(cuttoff)
 pipelines = [Pipeline(tsg, ig, icg) for ig in igs]
 
 # Run the experiment
-for (data, agents, name) in zip(datasets, all_agents, experiment_names)
+for (data, agents, name) in ProgressBar(zip(datasets, all_agents, experiment_names))
     run_experiment(data, agents, pipelines, save=true, experiment_name=name)
 end

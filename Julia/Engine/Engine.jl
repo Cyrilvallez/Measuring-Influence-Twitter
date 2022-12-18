@@ -1,6 +1,6 @@
 module Engine
 
-using DataFrames
+using DataFrames, ProgressBars
 using Reexport
 
 include("../Sensors/Sensors.jl")
@@ -46,7 +46,8 @@ end
 """
 Run multiple experiments and log all results.
 """
-function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines::Vector{Pipeline}; save::Bool = true, experiment_name = nothing)
+function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines::Vector{Pipeline}; save::Bool = true, experiment_name = nothing,
+    keep_bar::Bool = false)
 
     if save && isnothing(experiment_name)
         throw(ArgumentError("You must provide an experiment name if you want to save the data."))
@@ -62,7 +63,7 @@ function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines:
     # we will recompute the same time-series each time. However, the time needed is negligible compared to creating the graphs
     multiple_influence_graphs = Vector{InfluenceGraphs}(undef, length(pipelines))
     multiple_influence_cascades = Vector{InfluenceCascades}(undef, length(pipelines))
-    for (i, pipeline) in enumerate(pipelines)
+    for (i, pipeline) in ProgressBar(enumerate(pipelines), leave=keep_bar)
         influence_graphs, influence_cascades = observe(df, pipeline)
         multiple_influence_graphs[i] = influence_graphs
         multiple_influence_cascades[i] = influence_cascades

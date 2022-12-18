@@ -31,6 +31,7 @@ packages_with_version = [
     ("PlutoPlotly", "0.3.4"),
     ("IJulia", "1.23.3"),
     ("Reexport", "1.2.2"),
+    ("ProgressBars", "1.4.1"),
 ]
 
 packages_without_version = [
