@@ -18,7 +18,7 @@ agents_random = PreProcessingAgents(no_partition, trust_score, follower_count)
 all_agents = [agents_cop26, agents_cop27, agents_random]
 
 # Create the experiment names
-experiment_names = ["COP26_foo", "COP27_foo", "Random_foo"]
+experiment_names = ["COP26_JDD_2_seeds", "COP27_JDD_2_seeds", "Random_JDD_2_seeds"]
 
 
 # Define time series arguments
@@ -37,13 +37,16 @@ d = 5
 cuttoff = WithoutCuttoff
 
 
+# Create all pipelines based on different seeds for the same methods
+seeds = sample(Random.Xoshiro(1), 1:10000, 2, replace=false)
+
 tsg = TimeSeriesGenerator(Minute(time_resolution), standardize=standardize)
-ig = InfluenceGraphGenerator(method, Nsurro=Nsurro, alpha=alpha, B=B, d=d, τ=τ, seed=1234)
+igs = [InfluenceGraphGenerator(method, Nsurro=Nsurro, alpha=alpha, B=B, d=d, τ=τ, seed=seed) for seed in seeds]
 icg = InfluenceCascadeGenerator(cuttoff)
 
-pipeline = Pipeline(tsg, ig, icg)
+pipelines = [Pipeline(tsg, ig, icg) for ig in igs]
 
 # Run the experiment
 for (data, agents, name) in zip(datasets, all_agents, experiment_names)
-    run_experiment(data, agents, pipeline, save=true, experiment_name=name)
+    run_experiment(data, agents, pipelines, save=true, experiment_name=name)
 end
