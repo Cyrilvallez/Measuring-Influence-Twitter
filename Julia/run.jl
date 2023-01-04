@@ -3,7 +3,7 @@ using StatsBase: sample
 import Random
 
 include("Engine/Engine.jl")
-using .Engine;
+using .Engine
 
 # Load data
 data_cop26 = load_dataset(COP26)

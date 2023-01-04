@@ -6,10 +6,11 @@ using Reexport
 include("../Sensors/Sensors.jl")
 include("../PreProcessing/PreProcessing.jl")
 include("../Utils/Helpers.jl")
+include("../Utils/Metrics.jl")
 include("../Utils/Visualizations.jl")
 
 # Load the modules and reexport them so that they are available when importing only Engine (this removes the need to include every file in the correct order)
-@reexport using .Sensors, .PreProcessing, .Visualizations, .Helpers
+@reexport using .Sensors, .PreProcessing, .Visualizations, .Helpers, .Metrics
 
 export run_experiment
 

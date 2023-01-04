@@ -37,12 +37,12 @@ end
 
 
 function PreProcessingAgents()
-    return PreProcessingAgents(cop_26_dates, follower_count, trust_score)
+    return PreProcessingAgents(cop_26_dates, trust_score, follower_count)
 end
 
 
 function PreProcessingAgents(partition::Function)
-    return PreProcessingAgents(partition, follower_count, trust_score)
+    return PreProcessingAgents(partition, trust_score, follower_count)
 end
 
 

@@ -14,9 +14,10 @@ import tldextract
 import os
 import argparse
 from tqdm import tqdm
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
 
 nltk.download('vader_lexicon', quiet=True)
-ANALYZER = nltk.sentiment.vader.SentimentIntensityAnalyzer()
+ANALYZER = SentimentIntensityAnalyzer()
 
 # =============================================================================
 # Parsing and processing of twitter attributes

@@ -10,6 +10,7 @@ import Seaborn as sns
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors: SingleInfluenceGraph, InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
 using ..Helpers: make_simplifier
+using ..Metrics: edge_types
 
 export plot_cascade_sankey,
        plot_graph,
@@ -181,59 +182,27 @@ end
 
 
 
-function plot_edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real = 0.0; width::Real = 0.25,
-    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder = [2,3,1])
+"""
+Plot the different edge types count or proportion, for different partitions and/or datasets.
+"""
+function plot_edge_types(graphs, dfs, cuttoffs; y::String = "proportion", log::Bool = true, save::Bool = false, filename = nothing, kwargs...)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
     end
 
-    # Actions and partitions are represented in the order they appear in sort(unique(df)) in the adjacency matrix
-    actions = sort(unique(df.action))
-    partitions = sort(unique(df.partition))
-
-    # In this case remove default value
-    if length(partitions) != 3 && reorder == [2,3,1]
-        reorder = nothing
+    if y != "count" && y != "proportion"
+        throw(ArgumentError("y must be \"count\" or \"proportion\"."))
     end
 
-    N_actions = length(actions)
-    N_partitions = length(partitions)
-    
-    edge_types = [string(n1, " to ", n2) for n1 in actions for n2 in actions]
-
-    edge_number = Matrix{Int}(undef, N_partitions, N_actions^2)
-
-    for (k, adjacency) in enumerate(influence_graphs)
-        linear_index = 0
-        for i = 1:N_actions, j = 1:N_actions
-            linear_index += 1
-            simplifier = x -> (x[i, j] > cuttoff)
-            edge_number[k, linear_index] = sum(simplifier.(adjacency))
-        end
-    end
-
-    # Optionally reorder the bars in the plot
-    if !isnothing(reorder)
-        partitions = partitions[reorder]
-        edge_number = edge_number[reorder, :]
-    end
-
-    # Make it the proportion instead of the raw number
-    edge_number = edge_number ./ sum(edge_number, dims=2)
-
-
-    X, tick_position = barplot_layout(N_partitions, N_actions^2, width=width, inner_spacing=inner_spacing, outer_spacing=outer_spacing)
+    data = edge_types(graphs, dfs, cuttoffs)
 
     plt.figure()
-    for i = 1:N_partitions
-        plt.bar(X[i,:], edge_number[i,:], width=width, label=partitions[i], zorder=2)
-    end
+    sns.barplot(data, x="edge_type", y=y, hue="partition", saturation=1, zorder=2; kwargs...)
     plt.xlabel("Edge type")
-    plt.ylabel("Proportion of total number of edges")
+    plt.ylabel(uppercasefirst(y) * " of total number of edges")
     plt.legend()
     plt.grid(true, which="major", axis="y", zorder=0)
-    plt.xticks(tick_position, edge_types)
     if log
         plt.yscale("log")
         plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
