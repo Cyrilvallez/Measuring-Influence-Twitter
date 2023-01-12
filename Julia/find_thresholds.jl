@@ -91,7 +91,7 @@ for seed in ProgressBar(seeds)
             tot = 0
 
             for i in ProgressBar(1:N, leave=false)
-                if igg.causal_function(x,y) == 1
+                if igg.causal_function(X[i], Y[i]) == 1
                     tot += 1
                 end     
             end
