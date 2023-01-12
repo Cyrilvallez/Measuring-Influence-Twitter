@@ -1,6 +1,7 @@
 module Engine
 
-using DataFrames, ProgressBars
+using DataFrames
+using ProgressBars: ProgressBar
 using Reexport
 
 include("../Sensors/Sensors.jl")
@@ -12,7 +13,7 @@ include("../Utils/Visualizations.jl")
 # Load the modules and reexport them so that they are available when importing only Engine (this removes the need to include every file in the correct order)
 @reexport using .Sensors, .PreProcessing, .Visualizations, .Helpers, .Metrics
 
-export run_experiment
+export run_experiment, ProgressBar
 
 RESULT_FOLDER = PreProcessing.PROJECT_FOLDER * "/Results"
 
@@ -70,7 +71,7 @@ function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
     # we will recompute the same time-series each time. However, the time needed is negligible compared to creating the graphs
     multiple_influence_graphs = Vector{InfluenceGraphs}(undef, length(pipelines))
     multiple_influence_cascades = Vector{InfluenceCascades}(undef, length(pipelines))
-    for (i, pipeline) in ProgressBar(enumerate(pipelines), leave=keep_bar)
+    for (i, pipeline) in ProgressBar(enumerate(pipelines), "Experiment", leave=keep_bar)
         influence_graphs, influence_cascades = observe(df, pipeline)
         multiple_influence_graphs[i] = influence_graphs
         multiple_influence_cascades[i] = influence_cascades
@@ -84,6 +85,19 @@ function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
     return multiple_influence_graphs, multiple_influence_cascades
 
 end
+
+
+
+"""
+Provide a constructor to easily set the description of the bar (this is lacking in the original package).
+Note : this cannot be an optional argument in order to overload the constructor.
+"""
+function ProgressBar(wrapped::Any, description::AbstractString; leave::Bool = true)
+    bar = ProgressBar(wrapped, leave=leave)
+    bar.description = description
+    return bar
+end
+
 
 
 """

@@ -32,6 +32,7 @@ packages_with_version = [
     ("IJulia", "1.23.3"),
     ("Reexport", "1.2.2"),
     ("ProgressBars", "1.4.1"),
+    ("ArgParse", "1.1.4"),
 ]
 
 packages_without_version = [
