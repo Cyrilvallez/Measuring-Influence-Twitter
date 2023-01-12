@@ -10,7 +10,7 @@ using .Engine
 
 Random.seed!(123)
 
-N = 1000
+N = 10000
 N_seeds = 10
 seeds = sample(1:10000, N_seeds, replace=false)
 
