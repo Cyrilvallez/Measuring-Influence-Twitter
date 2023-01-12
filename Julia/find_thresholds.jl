@@ -10,7 +10,7 @@ using .Engine
 
 Random.seed!(123)
 
-N = 10000
+N = 1000
 N_seeds = 10
 seeds = sample(1:10000, N_seeds, replace=false)
 
@@ -30,7 +30,7 @@ Y = [sample([0,1], AnalyticWeights([0.9, 0.1]), 200) for i = 1:N]
 
 for seed in ProgressBar(seeds)
     for (i, limit) in ProgressBar(enumerate(limits), leave=false)
-        for (j, threshold) in enumerate(thresholds)
+        for (j, threshold) in ProgressBar(enumerate(thresholds), leave=false)
 
             igg = InfluenceGraphGenerator(SimpleTE, threshold=threshold, limit=limit, seed=seed)
             tot = 0
@@ -85,7 +85,7 @@ Y = [rand(200) for i = 1:N]
 
 for seed in ProgressBar(seeds)
     for (i, limit) in ProgressBar(enumerate(limits), leave=false)
-        for (j, threshold) in enumerate(thresholds)
+        for (j, threshold) in ProgressBar(enumerate(thresholds), leave=false)
 
             igg = InfluenceGraphGenerator(JointDistanceDistribution, alpha=threshold, limit=limit, seed=seed)
             tot = 0

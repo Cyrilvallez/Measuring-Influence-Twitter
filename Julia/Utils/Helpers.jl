@@ -126,17 +126,21 @@ end
 Format and check validity of a filename and extension. Create path if it does not exist.
 """
 function verify_filename(filename::AbstractString, extension::AbstractString)
-    split_on_dot = split(filename, '.')
+    final_part = basename(filename)
+    if final_part == ""
+        throw(ArgumentError("The basename cannot be empty."))
+    end
+    split_on_dot = split(final_part, '.')
 
     if length(split_on_dot) == 1
         filename *= '.' * extension
     elseif length(split_on_dot) == 2
         if split_on_dot[2] != extension
-            filename = split_on_dot[1] * '.' * extension
+            filename = dirname(filename) * '/' * split_on_dot[1] * '.' * extension
         end
     # In this case, throw an error
     else
-        throw(ArgumentError("The filename cannot contain any `.` except for the extension."))
+        throw(ArgumentError("The basename in the filename cannot contain any `.` except for the extension."))
     end
 
     # Create path if it does not already exist
