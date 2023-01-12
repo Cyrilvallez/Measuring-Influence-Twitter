@@ -66,9 +66,9 @@ end
 
 
 """
-Merge dictionaries with similar keys key-wise. Does not preserve the type of the container (i.e. OrderedDict will be recast as Dict), nor the type of the dict elements.
+Merge dictionaries with similar keys key-wise. Does not preserve the type of the container (i.e. OrderedDict will be recast as Dict), nor the type of the dict elements and keys.
 """
-function combine_dict(dict_list::Vector{<:AbstractDict{V, T}}) where {V,T}
+function combine_dict(dict_list::Vector{<:AbstractDict}) 
 
     N = length(dict_list)
 
@@ -80,7 +80,7 @@ function combine_dict(dict_list::Vector{<:AbstractDict{V, T}}) where {V,T}
         end
     end
 
-    combined_dict = Dict{V, Any}()
+    combined_dict = Dict()
     for key in dict_keys[1]
         combined_dict[key] = vcat([dict_list[i][key] for i = 1:N]...)
     end

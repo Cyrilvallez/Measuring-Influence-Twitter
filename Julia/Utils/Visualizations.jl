@@ -138,17 +138,15 @@ end
 """
 Plot the graph corresponding to the matrix adjacency, for one type of edge (edges are matrices).
 """
-function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any edge")
+function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any edge", print_node_names::Bool = true)
 
     # Actors and actions are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
     node_labels = sort(unique(df.actor))
     actions = sort(unique(df.action))
 
-    edge_types = [string(n1, " to ", n2) for n1 in actions for n2 in actions]
-    push!(edge_types, "Any Edge");
-
-    if !(edge_type in edge_types)
-        throw(ArgumentError("The `edge_type` provided is not valid. It should be one of $edge_types."))
+    edge_types = Matrix{String}(undef, length(actions), length(actions))
+    for (i, a1) in enumerate(actions), (j, a2) in enumerate(actions)
+        edge_types[i,j] = string(a1, " to ", a2)
     end
 
     simplifier = make_simplifier(edge_type, cuttoff, edge_types)
@@ -176,7 +174,11 @@ function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Rea
     end
 
     # Plot only connected nodes
-    gplot(connected_graph, nodefillc=colors, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
+    if print_node_names
+        gplot(connected_graph, nodefillc=colors, nodelabel=connected_vertices_labels, nodelabelc=colorant"white")
+    else
+        gplot(connected_graph, nodefillc=colors, nodelabelc=colorant"white") 
+    end
 
 end
 

@@ -20,13 +20,16 @@ RESULT_FOLDER = PreProcessing.PROJECT_FOLDER * "/Results"
 """
 Run a single experiment an log the results.
 """
-function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipeline::Pipeline; save::Bool = true, experiment_name = nothing)
+function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, pipeline::Pipeline; N_days::Int = 13, save::Bool = true, experiment_name = nothing)
 
     if save && isnothing(experiment_name)
         throw(ArgumentError("You must provide an experiment name if you want to save the data."))
     end
 
     folder = verify_experiment_name(experiment_name)
+
+    # Load the dataset
+    data = load_dataset(dataset, N_days=N_days)
 
     # Pre-process the data (partitions, actions and actors)
     df, _, _, _ = preprocessing(data, agents)
@@ -35,8 +38,8 @@ function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipeline::
     influence_graphs, influence_cascades = observe(df, pipeline)
 
     if save
-        save_data(influence_graphs, influence_cascades, agents, pipeline, folder * "data.jld2")
-        log_experiment(agents, pipeline, folder * "experiment.yml")
+        save_data(influence_graphs, influence_cascades, df, folder * "data.jld2")
+        log_experiment(dataset, agents, pipeline, folder * "experiment.yml")
     end
 
     return influence_graphs, influence_cascades
@@ -47,7 +50,7 @@ end
 """
 Run multiple experiments and log all results.
 """
-function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines::Vector{Pipeline}; save::Bool = true, experiment_name = nothing,
+function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, pipelines::Vector{Pipeline}; N_days::Int = 13, save::Bool = true, experiment_name = nothing,
     keep_bar::Bool = false)
 
     if save && isnothing(experiment_name)
@@ -55,6 +58,9 @@ function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines:
     end
 
     folder = verify_experiment_name(experiment_name)
+
+    # Load the dataset
+    data = load_dataset(dataset, N_days=N_days)
 
     # Pre-process the data (partitions, actions and actors)
     df, _, _, _ = preprocessing(data, agents)
@@ -71,8 +77,8 @@ function run_experiment(data::DataFrame, agents::PreProcessingAgents, pipelines:
     end
 
     if save
-        save_data(multiple_influence_graphs, multiple_influence_cascades, agents, pipelines, folder * "data.jld2")
-        log_experiment(agents, pipelines, folder * "experiment.yml")
+        save_data(multiple_influence_graphs, multiple_influence_cascades, df, folder * "data.jld2")
+        log_experiment(dataset, agents, pipelines, folder * "experiment.yml")
     end
 
     return multiple_influence_graphs, multiple_influence_cascades

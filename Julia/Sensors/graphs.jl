@@ -33,15 +33,25 @@ function ==(a::InfluenceGraphGenerator, b::InfluenceGraphGenerator)
 end
 
 
-"""
-Constructor using the custom version of transfer entropy.
 
 """
-function InfluenceGraphGenerator(::Type{SimpleTE})
+Constructor using the custom version of transfer entropy, possibly with surrogates.
+"""
+function InfluenceGraphGenerator(::Type{SimpleTE}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100,
+    threshold::Real = 0.001, limit::Function = x -> maximum(x)*4, seed::Int = 1234)
+
     func(x, y) = TE(Int.(x .> 0), Int.(y .> 0))
-    params = OrderedDict("function" => "TE")
-    return InfluenceGraphGenerator(func, params)
+
+    if !isnothing(surrogate)
+        measure = _surrogate_wrapper(func, threshold, >, limit, surrogate, Nsurro, seed)
+    else
+        measure = func
+    end
+
+    params = OrderedDict("function" => "SimpleTE", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "seed" => seed)
+    return InfluenceGraphGenerator(measure, params)
 end
+
 
 
 """
@@ -73,14 +83,14 @@ Note : the distances will be computed using Euclidean distance.
 - τ::Int = 1 is the time delay for the embedding of the time series
 
 """
-function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100,
-     seed::Int = 1234, alpha::Real = 0.001, B::Int = 10, d::Int = 5, τ::Int = 1)
+function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100, 
+    limit::Function = x -> minimum(x)/4, seed::Int = 1234, alpha::Real = 0.001, B::Int = 10, d::Int = 5, τ::Int = 1)
 
      # If the p-value is inferior than α, we reject the null hypothesis that the mean is 0, and we accept that as influence (encoded with a 1)
     func(x, y) = pvalue(jdd(OneSampleTTest, x, y, B=B, D=d, τ=τ, μ0=0.0), tail=:right)
 
     if !isnothing(surrogate)
-        measure = _surrogate_wrapper(func, alpha, surrogate, Nsurro, seed)
+        measure = _surrogate_wrapper(func, alpha, <, limit, surrogate, Nsurro, seed)
     else
         measure = (x,y) -> func(x,y) < alpha ? 1 : 0
     end
@@ -120,16 +130,16 @@ function observe(time_series::Vector{Vector{Matrix{Float64}}}, ig::InfluenceGrap
         for i = 1:length(partition), j = 1:length(partition)
 
             # Initialize the transfer entropy matrix between 2 actors (which is an edge in the actor graph)
-            edge_matrix = fill(0.0, N_actions, N_actions)
+            edge_matrix = fill(-1.0, N_actions, N_actions)
 
             if i != j
                 # Iterate on actions of each actor i and j
                 for k = 1:N_actions, l = 1:N_actions
                     time_serie_1 = partition[i][:, k]
                     time_serie_2 = partition[j][:, l]
-                    # If this is the case (at least one time serie is all 0), then there cannot be any influence between the two
+                    # If this is the case (at least one time serie is all 0), then there cannot be any influence between the two -> we encode it with -1
                     if iszero(time_serie_1) || iszero(time_serie_2)
-                        causality_measure = 0.0
+                        causality_measure = -1.0
                     # Compute causality between actor i and j and actions k and l
                     else
                         causality_measure = ig.causal_function(time_serie_1, time_serie_2)
@@ -150,21 +160,26 @@ end
 
 
 
-function _surrogate_wrapper(measure::Function, threshold::Real, surrogate::Surrogate, Nsurro::Int, seed::Int = 1234)
+
+
+function _surrogate_wrapper(measure::Function, threshold::Real, comparator::Function, limit::Function, surrogate::Surrogate, Nsurro::Int, seed::Int = 1234)
+
+    if (comparator != <) && (comparator != >)
+        throw(ArgumentError("This comparator function is not allowed."))
+    end
 
     function wrapper(x, y)
         causality_value = measure(x, y)
-        # If it is lower, we check the same measure with surrogates
-        if causality_value < threshold
+        # If comparison pass, we check the same measure with surrogates
+        if comparator(causality_value, threshold)
             generator = surrogenerator(x, surrogate, Random.Xoshiro(seed))
             surro_values = Vector(undef, Nsurro)
             for i = 1:Nsurro
                 surro_values[i] = measure(generator(), y)
             end
-            limit = minimum(surro_values)/4
 
-            # This is accepted since it is significantly lower than for the surrogates
-            if causality_value < limit
+            # This is accepted since it is significantly different than for the surrogates
+            if comparator(causality_value, limit(surro_values))
                 return 1
             # This is not accepted in comparison to the surrogates
             else

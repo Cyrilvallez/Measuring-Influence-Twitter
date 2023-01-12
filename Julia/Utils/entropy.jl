@@ -18,7 +18,7 @@ function TE(X, Y)
         numerator = state_proba / P_Yn_Xn
         denominator = P_Yn1_Yn / P_Yn
 
-        tot += state_proba * log(numerator / denominator)
+        tot += state_proba * log2(numerator / denominator)
 
     end
 
@@ -102,12 +102,12 @@ function TE_old_revised(X,Y)
         end
     end
 
-    return  Yₜ_0_Yₚ_0_Xₚ_0/(length(Y)-1) * log((Yₜ_0_Yₚ_0_Xₚ_0/Yₚ_0_Xₚ_0)/(Yₜ_0_Yₚ_0/Yₚ_0)) +
-            Yₜ_1_Yₚ_0_Xₚ_0/(length(Y)-1) * log((Yₜ_1_Yₚ_0_Xₚ_0/Yₚ_0_Xₚ_0)/(Yₜ_1_Yₚ_0/Yₚ_0)) +
-            Yₜ_0_Yₚ_1_Xₚ_0/(length(Y)-1) * log((Yₜ_0_Yₚ_1_Xₚ_0/Yₚ_1_Xₚ_0)/(Yₜ_0_Yₚ_1/Yₚ_1)) +
-            Yₜ_1_Yₚ_1_Xₚ_0/(length(Y)-1) * log((Yₜ_1_Yₚ_1_Xₚ_0/Yₚ_1_Xₚ_0)/(Yₜ_1_Yₚ_1/Yₚ_1)) +
-            Yₜ_0_Yₚ_0_Xₚ_1/(length(Y)-1) * log((Yₜ_0_Yₚ_0_Xₚ_1/Yₚ_0_Xₚ_1)/(Yₜ_0_Yₚ_0/Yₚ_0)) +
-            Yₜ_1_Yₚ_0_Xₚ_1/(length(Y)-1) * log((Yₜ_1_Yₚ_0_Xₚ_1/Yₚ_0_Xₚ_1)/(Yₜ_1_Yₚ_0/Yₚ_0)) +
-            Yₜ_0_Yₚ_1_Xₚ_1/(length(Y)-1) * log((Yₜ_0_Yₚ_1_Xₚ_1/Yₚ_1_Xₚ_1)/(Yₜ_0_Yₚ_1/Yₚ_1)) +
-            Yₜ_1_Yₚ_1_Xₚ_1/(length(Y)-1) * log((Yₜ_1_Yₚ_1_Xₚ_1/Yₚ_1_Xₚ_1)/(Yₜ_1_Yₚ_1/Yₚ_1))
+    return  Yₜ_0_Yₚ_0_Xₚ_0/(length(Y)-1) * log2((Yₜ_0_Yₚ_0_Xₚ_0/Yₚ_0_Xₚ_0)/(Yₜ_0_Yₚ_0/Yₚ_0)) +
+            Yₜ_1_Yₚ_0_Xₚ_0/(length(Y)-1) * log2((Yₜ_1_Yₚ_0_Xₚ_0/Yₚ_0_Xₚ_0)/(Yₜ_1_Yₚ_0/Yₚ_0)) +
+            Yₜ_0_Yₚ_1_Xₚ_0/(length(Y)-1) * log2((Yₜ_0_Yₚ_1_Xₚ_0/Yₚ_1_Xₚ_0)/(Yₜ_0_Yₚ_1/Yₚ_1)) +
+            Yₜ_1_Yₚ_1_Xₚ_0/(length(Y)-1) * log2((Yₜ_1_Yₚ_1_Xₚ_0/Yₚ_1_Xₚ_0)/(Yₜ_1_Yₚ_1/Yₚ_1)) +
+            Yₜ_0_Yₚ_0_Xₚ_1/(length(Y)-1) * log2((Yₜ_0_Yₚ_0_Xₚ_1/Yₚ_0_Xₚ_1)/(Yₜ_0_Yₚ_0/Yₚ_0)) +
+            Yₜ_1_Yₚ_0_Xₚ_1/(length(Y)-1) * log2((Yₜ_1_Yₚ_0_Xₚ_1/Yₚ_0_Xₚ_1)/(Yₜ_1_Yₚ_0/Yₚ_0)) +
+            Yₜ_0_Yₚ_1_Xₚ_1/(length(Y)-1) * log2((Yₜ_0_Yₚ_1_Xₚ_1/Yₚ_1_Xₚ_1)/(Yₜ_0_Yₚ_1/Yₚ_1)) +
+            Yₜ_1_Yₚ_1_Xₚ_1/(length(Y)-1) * log2((Yₜ_1_Yₚ_1_Xₚ_1/Yₚ_1_Xₚ_1)/(Yₜ_1_Yₚ_1/Yₚ_1))
 end

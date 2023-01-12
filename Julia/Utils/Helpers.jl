@@ -9,7 +9,7 @@ import Random
 using ..Sensors, ..PreProcessing
 
 export load_dataset, make_simplifier, save_data, load_data, log_experiment
-export COP26, COP27, RandomDays
+export Dataset, COP26, COP27, RandomDays
 
 
 DATA_FOLDER = PreProcessing.PROJECT_FOLDER * "/Data/Twitter"
@@ -108,19 +108,15 @@ end
 """
 Return a function deciding how to select indices of an edge matrix corresponding to the edge we are interested in.
 """
-function make_simplifier(edge_type::String, cuttoff::Float64, edge_types::Vector{String})
-    if !(edge_type in edge_types)
-        throw(ArgumentError("The edge you want is not present in the edge matrix."))
+function make_simplifier(edge_type::String, cuttoff::Real, edge_types::Matrix{String})
+    if !(edge_type in edge_types) && edge_type != "Any Edge"
+        throw(ArgumentError("The `edge_type` provided is not valid. It should be one of $edge_types, or \"Any Edge\"."))
     end
     if edge_type == "Any Edge"
         return x -> (maximum(x) > cuttoff)
     else
-        linear_idx = findfirst(edge_type .== edge_types)
-        # edge_types is the size of the edge matrix + 1
-        N = round(Int, sqrt(length(edge_types)-1))
-        matrix_idx_1 = linear_idx ÷ N + 1
-        matrix_idx_2 = linear_idx % N
-        return x -> (x[matrix_idx_1, matrix_idx_2] > cuttoff)
+        idx = findfirst(edge_type .== edge_types)
+        return x -> (x[idx] > cuttoff)
     end
 end
 
@@ -174,22 +170,22 @@ end
 
 
 """
-Easily save the influences graphs and cascades, and the preprocessing agents and pipeline used to generate them.
+Easily save the influences graphs and cascades, and the dataframe associated.
 """
-function save_data(influence_graphs::InfluenceGraphs, influence_cascades::InfluenceCascades, agents::PreProcessingAgents,
-    pipeline::Pipeline, filename::AbstractString; extension::AbstractString = "jld2")
-   data = Dict("influence_graphs" => influence_graphs, "influence_cascades" => influence_cascades, "agents" => agents, "pipeline" => pipeline)
+function save_data(influence_graphs::InfluenceGraphs, influence_cascades::InfluenceCascades, df::DataFrame,
+     filename::AbstractString; extension::AbstractString = "jld2")
+   data = Dict("influence_graphs" => influence_graphs, "influence_cascades" => influence_cascades, "data" => df)
    save_data(data, filename, extension=extension)
 end
 
 
 
 """
-Easily save a collection of influences graphs and cascades, and the preprocessing agents and multiple pipelines used to generate them.
+Easily save a collection of influences graphs and cascades, and the dataframe associated.
 """
-function save_data(multiple_influence_graphs::Vector{InfluenceGraphs}, multiple_influence_cascades::Vector{InfluenceCascades}, agents::PreProcessingAgents,
-    pipelines::Vector{Pipeline}, filename::AbstractString; extension::AbstractString = "jld2")
-   data = Dict("multiple_influence_graphs" => multiple_influence_graphs, "multiple_influence_cascades" => multiple_influence_cascades, "agents" => agents, "multiple_pipeline" => pipelines)
+function save_data(multiple_influence_graphs::Vector{InfluenceGraphs}, multiple_influence_cascades::Vector{InfluenceCascades}, df::DataFrame,
+     filename::AbstractString; extension::AbstractString = "jld2")
+   data = Dict("multiple_influence_graphs" => multiple_influence_graphs, "multiple_influence_cascades" => multiple_influence_cascades, "data" => df)
    save_data(data, filename, extension=extension)
 end
 
@@ -203,10 +199,10 @@ function load_data(filename::AbstractString)
     # Check if this was saved as a Dict containing influence results
     if typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["influence_cascades", "influence_graphs"]
         return data["influence_graphs"], data["influence_cascades"]
-    elseif typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["agents", "influence_cascades", "influence_graphs", "pipeline"]
-        return data["influence_graphs"], data["influence_cascades"], data["agents"], data["pipeline"]
-    elseif typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["agents", "multiple_influence_cascades", "multiple_influence_graphs", "multiple_pipeline"]
-        return data["multiple_influence_graphs"], data["multiple_influence_cascades"], data["agents"], data["multiple_pipeline"]
+    elseif typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["data", "influence_cascades", "influence_graphs"]
+        return data["influence_graphs"], data["influence_cascades"], data["data"]
+    elseif typeof(data) <: AbstractDict && sort(collect(keys(data))) == ["data", "multiple_influence_cascades", "multiple_influence_graphs"]
+        return data["multiple_influence_graphs"], data["multiple_influence_cascades"], data["data"]
     else
         return data
     end
@@ -217,27 +213,30 @@ end
 """
 Log the parameters used for an experiment.
 """
-function log_experiment(agents::PreProcessingAgents, pipeline::Pipeline, filename::AbstractString; extension::AbstractString = "yml", dump::Bool = true)
+function log_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, pipeline::Pipeline, filename::AbstractString; extension::AbstractString = "yml", dump::Bool = true)
 
-    filename = verify_filename(filename, extension)
+    if dump
+        filename = verify_filename(filename, extension)
+    end
     dic = OrderedDict()
 
-    dic["preprocessing"] = OrderedDict()
-    dic["time_series"] = OrderedDict()
-    dic["graphs"] = OrderedDict()
-    dic["influence_cascades"] = OrderedDict()
+    dic["Dataset"] = string(dataset)
+    dic["Preprocessing"] = OrderedDict()
+    dic["Time_series"] = OrderedDict()
+    dic["Graphs"] = OrderedDict()
+    dic["Influence_cascades"] = OrderedDict()
 
-    dic["preprocessing"]["partition"] = string(agents.partition_function)
-    dic["preprocessing"]["action"] = string(agents.action_function)
-    dic["preprocessing"]["actor"] = string(agents.actor_function)
+    dic["Preprocessing"]["partition"] = string(agents.partition_function)
+    dic["Preprocessing"]["action"] = string(agents.action_function)
+    dic["Preprocessing"]["actor"] = string(agents.actor_function)
 
-    dic["time_series"]["time_resolution"] = pipeline.time_series_generator.time_interval
-    dic["time_series"]["standardize"] = pipeline.time_series_generator.standardize
+    dic["Time_series"]["time_resolution"] = pipeline.time_series_generator.time_interval
+    dic["Time_series"]["standardize"] = pipeline.time_series_generator.standardize
 
-    dic["graphs"] = pipeline.influence_graph_generator.parameters
+    dic["Graphs"] = pipeline.influence_graph_generator.parameters
 
-    dic["influence_cascades"]["cuttoff"] = pipeline.influence_cascade_generator.cuttoff
-    dic["influence_cascades"]["normalize"] = pipeline.influence_cascade_generator.normalize
+    dic["Influence_cascades"]["cuttoff"] = pipeline.influence_cascade_generator.cuttoff
+    dic["Influence_cascades"]["normalize"] = pipeline.influence_cascade_generator.normalize
 
     if dump
         YAML.write_file(filename, dic)
@@ -252,13 +251,24 @@ end
 """
 Log the parameters used for different experiments.
 """
-function log_experiment(agents::PreProcessingAgents, pipelines::Vector{Pipeline}, filename::AbstractString; extension::AbstractString = "yml", dump::Bool = true)
+function log_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, pipelines::Vector{Pipeline}, filename::AbstractString; extension::AbstractString = "yml", dump::Bool = true)
 
-    filename = verify_filename(filename, extension)
+    if dump
+        filename = verify_filename(filename, extension)
+    end
     dic = OrderedDict()
 
     for (i, pipeline) in enumerate(pipelines)
-        dic["run $i"] = log_experiment(agents, pipeline, filename, extension=extension, dump=false)
+        partial_log = log_experiment(dataset, agents, pipeline, filename, extension=extension, dump=false)
+        # In the first iteration, save dataset and preprocessing part
+        if i == 1
+            dic["Dataset"] = partial_log["Dataset"]
+            dic["Preprocessing"] = partial_log["Preprocessing"]
+        end
+        # After, save the log without the dataset and preprocessing part
+        delete!(partial_log, "Dataset")
+        delete!(partial_log, "Preprocessing")
+        dic["Run $i"] = partial_log
     end
 
     if dump
