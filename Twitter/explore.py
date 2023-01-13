@@ -7,222 +7,81 @@ Created on Thu Oct 13 10:46:34 2022
 """
 
 import pandas as pd
-import time
+import urlexpander
+import tldextract
+from datetime import datetime
 
-import process
+filename = '~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_experiment_with_followers.csv'
+df = pd.read_csv(filename, sep='\t', dtype=object)
 
-#%%
-# filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_test.json'
-# filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/cop26_whole_period.json'
-# filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_processed.json'
-filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/all_links_cop26_processed.json'
-
-t0 = time.time()
-df = pd.read_json(filename, lines=True, dtype=object)
-dt = time.time() - t0
-
-# df = df[pd.notnull(df['urls'])]
-# df['full_urls'] = df.apply(lambda x: [domain + '.' + suffix for domain, suffix in zip(x['domain'], x['domain_suffix'])], axis=1)
+# Select only non missing data
+df = df[pd.notnull(df["Expanded URLs"])]
 
 #%%
 
-news = '../Data/news_table_clean.csv'
-news = pd.read_csv(news)
+# Perform some sanity checks
+assert(all(df.Date == df.time))
+assert(all(df.Domain == "twitter.com"))
 
+# Drop useless columns
+df.drop(labels=["Url", "Domain", "time"], axis="columns", inplace=True)
 
-#%%
-import os
+# Rename columns
+df.rename(columns={"Date": "created_at", "Author": "username", "Title": "original_text", "Twitter Followers": "follower_count", "Expanded URLs": "urls"}, inplace=True)
 
+# Format correctly and add UTC time zone info
+df.created_at = df["created_at"].apply(lambda x: datetime.strptime(x, '%Y-%m-%dT%H:%M:%S.0').isoformat() + '.000Z')
 
-folder = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/COP26_processed/'
-files = [folder + file for file in os.listdir(folder) if not file.startswith('.')]
+# Create list of urls
+df.urls = [url.split(', ') for url in df.urls]
 
-tot = 0
-for file in files:
-    df = pd.read_json(file, lines=True, dtype=object)
-    tot += sum(df.memory_usage(deep=True)/1e9)
-
-#%%
-
-def isin(urls, news_outlet):
-    for url in urls:
-        index = np.asarray(url == news_outlet['domain']).nonzero()[0]
-        if not len(index) == 0:
-            return news_outlet["tufm_class"][index[0]]
-        
-    return float('nan')
-
-df['action'] = df["full_urls"].apply(lambda x: isin(x, news))
-# remove news source not matching one of the source news table
-df = df[pd.notnull(df['action'])]
-
+# Cast follower_count to int instead of object (str)
+df = df.astype({"follower_count": int})
 
 #%%
 
-def isin(a, b):
-    if type(a) == float or a is None:
-        return float('nan')
-    for url in a:
-        if url in b:
-            return url
-    return float('nan')
+def try_expand(urls: list[str]) -> list[str]:
 
-
-
-#%%
-
-avg = df['original_text'].apply(lambda x: len(x.split(' '))).quantile(q=0.75)
-print(avg)
-
-#%%
-
-for i in range(len(df)):
-    text = df['original_text'][i]
-    print(f'{i} \n{text} \n \n')
-
-#%%
-
-from transformers import pipeline
-
-classifier = pipeline("sentiment-analysis")
-
-#%%
-
-t0 = time.time()
-i = 5
-print(df['original_text'][i])
-print('\n')
-print(classifier(df['original_text'][i]))
-
-#%%
-
-t0 = time.time()
-for i in range(10):
-    a = classifier(df['original_text'][i])
-print(f'{time.time() - t0} s')
-
-#%%
-
-
-test = df['original_text'].apply(lambda x: classifier(x)[0]['label'])
-
-#%%
-
-unique, count = np.unique(df['username'].apply(lambda x: x[0]), return_counts=True)
-
-
-#%%
-
-unique, count = np.unique(df['category'], return_counts=True)
-
-
-
-#%%
-
-# test2 = pd.read_csv("test.csv", quoting=csv.QUOTE_ALL)
-test2 = pd.read_json("test.json", lines=True, dtype=object)
-
-#%%
-
-foo = df[pd.isnull(df['urls'])]
-
-
-#%% 
-test = pd.DataFrame({'A': [float('nan'), 2, 3]})
-test.to_json('test.json', orient="records", lines=True)
-
-#%%
-
-from tqdm import tqdm
-
-N = int(1e8)
-
-for i in tqdm(range(5), desc='test'):
-    for j in tqdm(range(N), leave=False):
-        z = i+1
+    copy = urls.copy()
+    for i, url in enumerate(copy):
+        if urlexpander.is_short(url) or 'act.gp' in url:
+            try:
+                copy[i] = urlexpander.expand(url)
+            except:
+                # In this case we do nothing
+                pass
     
-    
-    
-#%%
-import time
-filename = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/COP26/2021-10-31T00-00_to_2021-11-04T00-00.json'
-t0 = time.time()
-for i in range(10):
-    with open(filename, 'r') as file: 
-        N_lines = sum(1 for _ in file) 
-dt2 = (time.time() - t0)/10
-       
+    return copy
 
-#%%
 
-from datetime import datetime, timedelta
-import numpy as np
-
-def get_random_date(left_lim: date, right_lim: date, N: int) -> list[datetime]:
-    """
-    Generate random dates between the two limits provided (without replacement). 
-    The left limit is included, while the right limit is excluded. This means
-    you can obtain the left limit, but never the right one.
-    It return datetime with time set to 0 and utc timezone.
-
-    Parameters
-    ----------
-    left_lim : date
-        The left interval limit.
-    right_lim : date
-        The right interval limit.
-    N : int
-        The number of random dates you want between the two limits.
-
-    Raises
-    ------
-    ValueError
-        If N is larger than the interval.
-
-    Returns
-    -------
-    list[datetime]
-        The random datetimes between the limits.
-
-    """
+def get_domain_and_suffix(urls: list[str]) -> list[str]:
     
-    # Random number generator with seed to be reproducible
-    rng = np.random.default_rng(1234)
+    parsing = [tldextract.extract(url) for url in urls]
+    # Join the domain and suffix into a single string
+    domain = ['.'.join(part for part in url[1:] if part) for url in parsing]
     
-    delta = (right_lim - left_lim).days
-    
-    if N > delta:
-        raise ValueError('Cannot pick more sample than there are days in the interval you provided.')
-    
-    random_numbers = rng.choice(delta, size=N, replace=False)
-    # Sort the randm number so the random dates will also be ordered
-    random_numbers = np.sort(random_numbers)
-    random_dates = [left_lim + timedelta(days=int(rand)) for rand in random_numbers]
-    random_datetimes = [datetime(d.year, d.month, d.day, tzinfo=timezone.utc) for d in random_dates]
-    
-    return random_datetimes
+    return domain
+
+
+
+# try expand everything
+df.urls = df["urls"].apply(try_expand)
+
+# extract domains
+df["domain"] = df["urls"].apply(get_domain_and_suffix)
+
 #%%
 
-d1 = date(2020, 10, 21)
-d2 = date(2022, 10, 21)
-
-foo = ('A filename corresponding to the same folder and date already exists.'
-                  ' Choose another folder name.')
+# Export to json
+df.to_json('~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_clean.json', orient="records", lines=True)
 
 
 #%%
 
-import argparse
-from datetime import date
+# Drop non-lightweight columns
+df.drop(labels=["original_text", "urls"], axis="columns", inplace=True)
 
-parser = argparse.ArgumentParser(description='Twitter random API call')
-parser.add_argument('--left_lim', type=date.fromisoformat, default='2020-01-01',
-                    help=('The left limit for the interval in which to pick random days (YYYY-MM-DD).'
-                          ' The default is 2020-01-01.'))
-args = parser.parse_args()
-
-
-
-
+# Export to json
+df.to_json('~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_clean_lightweight.json', orient="records", lines=True)
 
 

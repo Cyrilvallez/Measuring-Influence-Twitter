@@ -9,16 +9,17 @@ import Random
 using ..Sensors, ..PreProcessing
 
 export load_dataset, make_simplifier, save_data, load_data, log_experiment
-export Dataset, COP26, COP27, RandomDays
+export Dataset, COP26, COP27, Skripal, RandomDays
 
 
-DATA_FOLDER = PreProcessing.PROJECT_FOLDER * "/Data/Twitter"
+DATA_FOLDER = PreProcessing.PROJECT_FOLDER * "/Data/"
 
 # Those will be used in an "enum" fashion for dispatch (they do not hold any
 # fields, only their name are used)
 abstract type Dataset end
 struct COP26 <: Dataset end
 struct COP27 <: Dataset end
+struct Skripal <: Dataset end
 struct RandomDays <: Dataset end
 
 
@@ -45,14 +46,18 @@ Easily load a dataset from disk into a DataFrame.
 function load_dataset(::Type{T}; N_days::Int = 13) where T <: Dataset
 
     if T == COP26
-        datafolder = DATA_FOLDER * "/COP26_processed_lightweight/"
+        datafolder = DATA_FOLDER * "Twitter/COP26_processed_lightweight/"
     elseif T == COP27
-        datafolder = DATA_FOLDER * "/COP27_processed_lightweight/"
+        datafolder = DATA_FOLDER * "Twitter/COP27_processed_lightweight/"
     elseif T == RandomDays 
-        datafolder = DATA_FOLDER * "/Random_days_processed_lightweight/"
+        datafolder = DATA_FOLDER * "Twitter/Random_days_processed_lightweight/"
     end
 
-    datafiles = [file for file in readdir(datafolder) if occursin(".json", file)]
+    if T == Skripal
+        datafiles = [DATA_FOLDER * "BrandWatch/Skripal/skripal_clean_lightweight.json"]
+    else
+        datafiles = [file for file in readdir(datafolder, join=true) if occursin(".json", file)]
+    end
 
     # Select only a few days randomly
     if T == RandomDays
@@ -62,7 +67,7 @@ function load_dataset(::Type{T}; N_days::Int = 13) where T <: Dataset
         datafiles = datafiles[indices]
     end
 
-    frames = [load_json(datafolder * file) for file in datafiles]
+    frames = [load_json(file) for file in datafiles]
     data = vcat(frames...)
 
     # Artificially change the days 

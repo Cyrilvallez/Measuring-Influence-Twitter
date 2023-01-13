@@ -107,8 +107,15 @@ if !no_TE
         mean_value[i] = mean(result[i])
     end
 
+    # Set vmin a little lower than minimum, so that 0 appears on a color scale lower than minimum when using clip=true
+    if any(mean_value .== 0)
+        vmin = minimum(mean_value[mean_value .!= 0])/2
+    else
+        vmin = minimum(mean_value)
+    end
+
     plt.figure(figsize=[6.4, 4.8].*1.2)
-    sns.heatmap(mean_value, annot=true, cmap="rocket_r")
+    sns.heatmap(mean_value, annot=true, cmap="rocket_r", norm=plt.matplotlib.colors.LogNorm(vmin=vmin, clip=true))
     plt.xlabel("Threshold")
     plt.ylabel("Limit value")
     xloc, xlabels = plt.xticks()
@@ -129,7 +136,7 @@ end
 if !no_JDD
 
 
-    thresholds2 = [1, 0.05, 0.01, 0.005, 0.001]
+    thresholds2 = [1, 1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4]
     limits2 = [x->+1000000, x->quantile(x, 0.5), x->quantile(x, 0.25), x->quantile(x, 0.1), x->quantile(x, 0), x->quantile(x, 0)/2, x->quantile(x, 0)/4]
     labels2 = ["None", "Q(0.5)", "Q(0.25)", "Q(0.1)", "min", "min/2", "min/4"]
 
@@ -150,7 +157,7 @@ if !no_JDD
             for (i, limit) in ProgressBar(enumerate(limits2), "Limits", leave=false)
                 for (j, threshold) in ProgressBar(enumerate(thresholds2), "Thresholds", leave=false)
 
-                    igg = InfluenceGraphGenerator(JointDistanceDistribution, alpha=threshold, limit=limit, seed=seed)
+                    igg = InfluenceGraphGenerator(JointDistanceDistribution, alpha=threshold, limit=limit, seed=seed_surro)
                     tot = 0
 
                     for i in ProgressBar(1:N, leave=false)
@@ -178,8 +185,15 @@ if !no_JDD
         mean_value2[i] = mean(result2[i])
     end
 
+    # Set vmin a little lower than minimum, so that 0 appears on a color scale lower than minimum when using clip=true
+    if any(mean_value .== 0)
+        vmin = minimum(mean_value[mean_value .!= 0])/2
+    else
+        vmin = minimum(mean_value)
+    end
+ 
     plt.figure(figsize=[6.4, 4.8].*1.2)
-    sns.heatmap(mean_value2, annot=true, cmap="rocket_r")
+    sns.heatmap(mean_value2, annot=true, cmap="rocket_r", norm=plt.matplotlib.colors.LogNorm(vmin=vmin, clip=true))
     plt.xlabel("p-value")
     plt.ylabel("Limit value")
     xloc, xlabels = plt.xticks()
