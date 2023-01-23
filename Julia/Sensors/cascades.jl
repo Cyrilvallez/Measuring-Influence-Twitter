@@ -6,11 +6,11 @@ import Base: ==
 struct WithoutCuttoff end
 
 struct InfluenceCascadeGenerator 
-    cuttoff::Float64
+    cuttoff::Real
     normalize::Bool
 end
 
-function InfluenceCascadeGenerator(cuttoff::Float64)
+function InfluenceCascadeGenerator(cuttoff::Real)
     return InfluenceCascadeGenerator(cuttoff, true)
 end
 

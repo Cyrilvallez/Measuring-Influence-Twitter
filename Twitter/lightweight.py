@@ -56,10 +56,54 @@ def isin(domains: list[str], news_outlet: pd.DataFrame) -> bool:
 
 
 
+def effective_category(tweet: dict) -> str:
+    """
+    Check if a given tweet should be classified as a retweet or usual tweet.
+    Quote tweets are considered retweets, and replies are considered tweets.
+    Return the original tweet author if this is a retweet, or NaN for tweets.
+
+    Parameters
+    ----------
+    tweet : dict
+        The tweet object.
+
+    Returns
+    -------
+    str
+        Username of original author.
+
+    """
+    
+    # Sometimes tweets are mislabeled by Twitter (or users are using functionalities incorrectly)
+    # thus we first check by RT @username for all possible tweets categories
+    if tweet['text'].startswith('RT @'):
+        content = tweet['text'].split('RT @')[1]
+        name = content.split(' ')[0]
+        if ':' in name:
+            return name.split(':')[0]
+        else:
+            return name
+        
+    # We consider quote tweets as retweets
+    elif 'quoted' in tweet['category']:
+        if type(tweet['original_author']) == list:
+            return tweet['original_author'][0]
+        else:
+            # We set it to -1 and remove them later
+            return -1
+        
+    # Replies and other tweets are considered as tweets
+    else:
+        return float('nan')
+            
+
+
+
 def reduce(path: str, attributes: list[str] = LIGHTWEIGHT_ATTRIBUTES) -> pd.DataFrame:
     """
     Reduce the size of a DataFrame by keeping only rows matching at least one
     of the news source, and truncating the columns to the minimum needed.
+    Also add columns corresponding to categories and original author.
 
     Parameters
     ----------
@@ -76,8 +120,16 @@ def reduce(path: str, attributes: list[str] = LIGHTWEIGHT_ATTRIBUTES) -> pd.Data
     """
     
     df = pd.read_json(path, lines=True, dtype=object, convert_dates=False)
+    df['retweet_from'] = df.apply(effective_category, axis=1)
+    # Remove missing values for quoted tweets
+    df = df[df.retweet_from != -1]
+    df['effective_category'] = df['retweet_from'].apply(lambda x: 'tweet' if pd.isnull(x) else 'retweet')
     news = pd.read_csv(NEWS_TABLE)
     mask = [isin(domains, news) for domains in df['domain']]
+    if 'retweet_from' not in attributes:
+        attributes.append('retweet_from')
+    if 'effective_category' not in attributes:
+        attributes.append('effective_category')
     
     return df.loc[mask, attributes]
     

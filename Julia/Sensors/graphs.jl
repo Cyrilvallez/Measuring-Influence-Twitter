@@ -1,5 +1,5 @@
 using CausalityTools, DataStructures
-using StatsBase: minimum
+using StatsBase: maximum, minimum, quantile
 import Random
 import Base: ==
 
@@ -33,22 +33,34 @@ function ==(a::InfluenceGraphGenerator, b::InfluenceGraphGenerator)
 end
 
 
+"""
+Parse a string and return corresponding expression. Useful for being able to pass anonymous functions
+as string (just surround the anonymous function with quotes) for later logging (otherwise once the anonymous function
+is created there are no ways of getting back the litteral expression it executes).
+"""
+function parse_string(s::AbstractString)
+    expression = eval(Meta.parse(s))
+    return expression
+end
+
+
 
 """
 Constructor using the custom version of transfer entropy, possibly with surrogates.
 """
 function InfluenceGraphGenerator(::Type{SimpleTE}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100,
-    threshold::Real = 0.001, limit::Function = x -> maximum(x)*4, seed::Int = 1234)
+    limit::String = "x -> maximum(x)", threshold::Real = 0.04, seed::Int = 1234)
 
     func(x, y) = TE(Int.(x .> 0), Int.(y .> 0))
 
-    if !isnothing(surrogate)
-        measure = _surrogate_wrapper(func, threshold, >, limit, surrogate, Nsurro, seed)
+    if !(isnothing(surrogate) || Nsurro <= 0)
+        limit_func = parse_string(limit)
+        measure = _surrogate_wrapper(func, threshold, >, limit_func, surrogate, Nsurro, seed)
     else
         measure = func
     end
 
-    params = OrderedDict("function" => "SimpleTE", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "seed" => seed)
+    params = OrderedDict("function" => "SimpleTE", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "limit" => limit, "threshold" => threshold, "seed" => seed)
     return InfluenceGraphGenerator(measure, params)
 end
 
@@ -84,18 +96,22 @@ Note : the distances will be computed using Euclidean distance.
 
 """
 function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100, 
-    limit::Function = x -> minimum(x)/4, seed::Int = 1234, alpha::Real = 0.001, B::Int = 10, d::Int = 5, τ::Int = 1)
+    limit::String = "x -> minimum(x)/4", threshold::Real = 0.01, seed::Int = 1234, B::Int = 10, d::Int = 5, τ::Int = 1)
 
-     # If the p-value is inferior than α, we reject the null hypothesis that the mean is 0, and we accept that as influence (encoded with a 1)
     func(x, y) = pvalue(jdd(OneSampleTTest, x, y, B=B, D=d, τ=τ, μ0=0.0), tail=:right)
 
-    if !isnothing(surrogate)
-        measure = _surrogate_wrapper(func, alpha, <, limit, surrogate, Nsurro, seed)
+    if !(isnothing(surrogate) || Nsurro <= 0)
+        # Make use of surrogates
+        limit_func = parse_string(limit)
+        measure = _surrogate_wrapper(func, threshold, <, limit_func, surrogate, Nsurro, seed)
     else
-        measure = (x,y) -> func(x,y) < alpha ? 1 : 0
+        # If the p-value is inferior than threshold, we reject the null hypothesis that the mean is 0, and we accept that as influence (encoded with a 1)
+        measure = (x,y) -> func(x,y) < threshold ? 1 : 0
+        # measure = func
     end
 
-    params = OrderedDict("function" => "JointDistanceDistribution", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "seed" => seed, "alpha" => alpha, "B" => B, "d" => d, "tau" => τ)
+    params = OrderedDict("function" => "JointDistanceDistribution", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "limit" => limit, "threshold" => threshold,
+    "seed" => seed, "threshold" => threshold, "B" => B, "d" => d, "tau" => τ)
 
     return InfluenceGraphGenerator(measure, params)
 end
@@ -144,7 +160,7 @@ function observe(time_series::Vector{Vector{Matrix{Float64}}}, ig::InfluenceGrap
                     else
                         causality_measure = ig.causal_function(time_serie_1, time_serie_2)
                     end
-                    edge_matrix[k, l] = isnan(causality_measure) ? 0.0 : causality_measure
+                    edge_matrix[k, l] = isnan(causality_measure) ? 0. : causality_measure
                 end
             end
             # cast it into the partition-wise adjacency matrix

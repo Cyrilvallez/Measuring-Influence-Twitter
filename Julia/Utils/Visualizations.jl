@@ -138,18 +138,13 @@ end
 """
 Plot the graph corresponding to the matrix adjacency, for one type of edge (edges are matrices).
 """
-function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any edge", print_node_names::Bool = true)
+function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any Edge", print_node_names::Bool = false)
 
     # Actors and actions are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
     node_labels = sort(unique(df.actor))
     actions = sort(unique(df.action))
 
-    edge_types = Matrix{String}(undef, length(actions), length(actions))
-    for (i, a1) in enumerate(actions), (j, a2) in enumerate(actions)
-        edge_types[i,j] = string(a1, " to ", a2)
-    end
-
-    simplifier = make_simplifier(edge_type, cuttoff, edge_types)
+    simplifier = make_simplifier(edge_type, cuttoff, actions)
 
     # reduce the adjacency matrix containing edge matrices to simple adjacency matrix depending on which 
     # connection we are interested in in the edge matrices
@@ -187,14 +182,15 @@ end
 """
 Plot the different edge types count or proportion, for different partitions and/or datasets.
 """
-function plot_edge_types(graphs, dfs, cuttoffs; y::String = "proportion", log::Bool = true, save::Bool = false, filename = nothing, kwargs...)
+function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool = true, save::Bool = false, filename = nothing, kwargs...)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
     end
 
-    if y != "count" && y != "proportion"
-        throw(ArgumentError("y must be \"count\" or \"proportion\"."))
+    acceptable_y = ["count", "count_normalized", "proportion"]
+    if !(y in acceptable_y)
+        throw(ArgumentError("y must be one of $acceptable_y."))
     end
 
     data = edge_types(graphs, dfs, cuttoffs)

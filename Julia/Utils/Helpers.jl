@@ -113,10 +113,19 @@ end
 """
 Return a function deciding how to select indices of an edge matrix corresponding to the edge we are interested in.
 """
-function make_simplifier(edge_type::String, cuttoff::Real, edge_types::Matrix{String})
+function make_simplifier(edge_type::String, cuttoff::Real, actions::Vector{String})
+
+    actions = sort(actions)
+
+    edge_types = Matrix{String}(undef, length(actions), length(actions))
+    for (i, a1) in enumerate(actions), (j, a2) in enumerate(actions)
+        edge_types[i,j] = string(a1, " to ", a2)
+    end
+
     if !(edge_type in edge_types) && edge_type != "Any Edge"
         throw(ArgumentError("The `edge_type` provided is not valid. It should be one of $edge_types, or \"Any Edge\"."))
     end
+
     if edge_type == "Any Edge"
         return x -> (maximum(x) > cuttoff)
     else

@@ -27,7 +27,7 @@ assert(all(df.Domain == "twitter.com"))
 df.drop(labels=["Url", "Domain", "time"], axis="columns", inplace=True)
 
 # Rename columns
-df.rename(columns={"Date": "created_at", "Author": "username", "Title": "original_text", "Twitter Followers": "follower_count", "Expanded URLs": "urls"}, inplace=True)
+df.rename(columns={"Date": "created_at", "Author": "username", "Title": "text", "Twitter Followers": "follower_count", "Expanded URLs": "urls"}, inplace=True)
 
 # Format correctly and add UTC time zone info
 df.created_at = df["created_at"].apply(lambda x: datetime.strptime(x, '%Y-%m-%dT%H:%M:%S.0').isoformat() + '.000Z')
@@ -78,10 +78,128 @@ df.to_json('~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_clean.json', orient
 
 #%%
 
+import lightweight
+
+def effective_category(tweet: dict) -> str:
+    """
+    Check if a given tweet should be classified as a retweet or usual tweet.
+    Quote tweets are considered retweets, and replies are considered tweets.
+    Return the original tweet author if this is a retweet, or NaN for tweets.
+
+    Parameters
+    ----------
+    tweet : dict
+        The tweet object.
+
+    Returns
+    -------
+    str
+        Username of original author.
+
+    """
+    
+    if tweet['text'].startswith('RT @'):
+        content = tweet['text'].split('RT @')[1]
+        name = content.split(' ')[0]
+        if ':' in name:
+            return name.split(':')[0]
+        else:
+            return name
+        
+    else:
+        return float('nan')
+    
+
+# Extract retweet info
+df['retweet_from'] = df.apply(effective_category, axis=1)
+df['effective_category'] = df['retweet_from'].apply(lambda x: 'tweet' if pd.isnull(x) else 'retweet')
+
+# Check if the urls are in the news table
+news = pd.read_csv(lightweight.NEWS_TABLE)
+mask = [lightweight.isin(domains, news) for domains in df['domain']]
+
+# Keep only rows with urls in the news table
+df = df[mask]
+
 # Drop non-lightweight columns
-df.drop(labels=["original_text", "urls"], axis="columns", inplace=True)
+df.drop(labels=["text", "urls"], axis="columns", inplace=True)
 
 # Export to json
 df.to_json('~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_clean_lightweight.json', orient="records", lines=True)
 
 
+
+
+#%%
+
+
+# TEST
+
+import pandas as pd
+import os
+import json
+import numpy as np
+
+folder = '/Users/cyrilvallez/Desktop/Thesis/Data/Twitter/COP26/'
+filenames = [folder + file for file in os.listdir(folder) if not file.startswith('.')]
+
+
+#%%
+
+tweets = []
+with open(filenames[1], 'r') as file:
+
+    for i, line in enumerate(file):
+
+        if i < 2:
+            continue
+        
+        if i > 20:
+            break
+        
+        tweet = json.loads(line)
+        tweets.append(tweet)
+        
+df = pd.DataFrame.from_records(tweets)
+#%%
+
+def effective_category_quick(tweet: dict) -> str:
+    """
+    Check if a given tweet should be classified as a retweet or usual tweet.
+    Quote tweets are considered retweets, and replies are considered tweets.
+    Return the original tweet author if this is a retweet, or NaN for tweets.
+
+    Parameters
+    ----------
+    tweet : dict
+        The tweet object.
+
+    Returns
+    -------
+    str
+        Username of original author.
+
+    """
+    
+    # Sometimes tweets are mislabeled by Twitter (or users are using functionalities incorrectly)
+    # thus we first check by RT @username for all possible tweets categories
+    if tweet['text'].startswith('RT @'):
+        content = tweet['text'].split('RT @')[1]
+        name = content.split(' ')[0]
+        if ':' in name:
+            return name.split(':')[0]
+        else:
+            return name
+        
+        
+    # Replies and other tweets are considered as tweets
+    else:
+        return float('nan')
+
+
+for i, file in enumerate(filenames):
+    
+    print(i)
+    df = pd.read_json(file, lines=True, convert_dates=False, dtype=object)
+    df["foo"] = df.apply(effective_category_quick, axis=1)
+    df['effective_category'] = df["foo"].apply(lambda x: 'tweet' if pd.isnull(x) else 'retweet')

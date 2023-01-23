@@ -170,7 +170,40 @@ def get_original_text(tweet: dict, category: list[str]) -> str:
 
     """
     
-    return tweet['referenced_tweets'][0]['text'] if category == ['retweeted'] else tweet['text']
+    if category != ['tweeted']:
+        if 'text' in tweet['referenced_tweets'][0].keys():
+            return tweet['referenced_tweets'][0]['text']
+        else:
+            return tweet['text']
+    else:
+        return tweet['text']
+
+
+
+def get_original_author(tweet: dict) -> str:
+    """
+    Return the author of the original post in case of retweet, quote or reply.
+    In case of a tweet, return NaN.
+
+    Parameters
+    ----------
+    tweet : dict
+        A tweet as returned by the twitter API.
+
+    Returns
+    -------
+    str
+        The original author(s).
+
+    """
+    
+    if 'referenced_tweets' in tweet.keys():
+        authors = [dic['author']['username'] for dic in tweet['referenced_tweets']
+                   if 'author' in dic.keys()]
+        return authors if len(authors) > 0 else float('nan')
+    else:
+        return float('nan')
+    
 
     
 def get_sentiment(original_text: str) -> str:
@@ -394,6 +427,7 @@ def process_tweets(filename: str, to_df: bool = True, try_expand: bool = True,
             dic['country_code'] = get_country_code(tweet)
             dic['category'] = get_tweet_category(tweet)
             dic['original_text'] = get_original_text(tweet, dic['category'])
+            dic['original_author'] = get_original_author(tweet)
             dic['sentiment'] = get_sentiment(dic['original_text'])
             dic['urls'] = get_urls(tweet, dic['category'], try_expand)
             dic['hashtags'] = get_hashtags(tweet, dic['category'])
