@@ -3,6 +3,9 @@ using ..Engine
 
 using BenchmarkTools
 using CausalityTools
+import Random
+
+Random.seed!(1)
 
 igg = InfluenceGraphGenerator(Engine.JointDistanceDistribution, surrogate=nothing)
 

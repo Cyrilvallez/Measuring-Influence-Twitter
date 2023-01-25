@@ -29,3 +29,7 @@ julia julia_requirements.jl
 # Delete installers
 rm ~/miniconda.sh
 rm ~/julia.tar.gz
+
+# Install github from conda and folders
+conda install gh --channel conda-forge
+mkdir Data/Twitter
