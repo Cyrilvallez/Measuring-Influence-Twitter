@@ -1,4 +1,4 @@
-using DataFrames, SparseArrays
+using DataFrames, SparseArrays, LinearAlgebra
 
 """
 Define actor as countries, using the country_code in the tweeets.
@@ -13,45 +13,66 @@ end
 
 """
 Define actor using the number of followers of each individual in the dataset.  
-The first N=500 individuals with most followers will be treated as individual actors,  
-while the other ones will be aggregated in bins of 10,000 people.
+The first N=actor_number users with most followers will be treated as individual actors,  
+while the other ones will be aggregated in bins of M=aggregate_size people.
 """
-function follower_count(df::DataFrame)
+function follower_count(;min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000)
 
-	# Get indices resulting on the unique values of df."username"
-	x = df."username"
-	indices = unique(i -> x[i], 1:length(x))
-	# Get unique usernames and corresponding follower_count
-	users = x[indices]
-	followers = df."follower_count"[indices]
+	log = "follower_count(min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
 
-	# sort the users in desending order of follower_count
-	sorting = sortperm(followers, rev=true)
-	followers = followers[sorting]
-	users = users[sorting]
+	function actors(df::DataFrame)
 
-	M = length(users)
-	actors = Vector{String}(undef, M)
-	N = 500
-	for i = 1:N
-		actors[i] = users[i]
-	end
+		# Take only users who tweeted more than min_tweets
+		df = df[df.effective_category .== "tweet", :]
+		df = transform(groupby(df, "username"), "created_at" => length => "tweet_count")
+		df = df[df.tweet_count .>= min_tweets, :]
 
-	L = 10000
-	N += 1
-	while true
-		if N + L <= M
-			actors[N:(N+L)] .= "$(followers[N]) to $(followers[N+L]) followers"
+		# Get indices resulting on the unique values of df."username"
+		x = df."username"
+		indices = unique(i -> x[i], 1:length(x))
+		# Get unique usernames and corresponding follower_count
+		users = x[indices]
+		followers = df."follower_count"[indices]
+
+		# sort the users in desending order of follower_count
+		sorting = sortperm(followers, rev=true)
+		followers = followers[sorting]
+		users = users[sorting]
+
+		M = length(users)
+		actors = Vector{String}(undef, M)
+		
+		if actor_number == -1
+			actor_dict = Dict(users .=> users)
 		else
-			actors[N:end] .= "$(followers[N]) to $(followers[end]) followers"
-			break
+			for i = 1:actor_number
+				actors[i] = users[i]
+			end
+
+			L = aggregate_size
+			N = actor_number += 1
+			counter = 0
+			while true
+				counter += 1
+				if N + L <= M
+					actors[N:(N+L)] .= "AGG$(counter): $(followers[N]) to $(followers[N+L]) followers"
+				else
+					actors[N:end] .= "AGG$(counter): $(followers[N]) to $(followers[end]) followers"
+					break
+				end
+				N += L
+			end
+
+			actor_dict = Dict(users .=> actors)
 		end
-		N += L
+		
+		df = transform(df, "username" => ByRow(x -> actor_dict[x]) => "actor")
+
+		return df
+
 	end
 
-	actor_dict = Dict(zip(users, actors))
-	df = transform(df, "username" => ByRow(x -> actor_dict[x]) => "actor")
-	return df
+	return actors, log
 end
 
 
@@ -59,9 +80,54 @@ end
 """
 Define actor using the username in the tweets, thus every people in the dataset is a different actor.
 """
-function username(df::DataFrame)
-	df."actor" = df."username"
+function all_users(;min_tweets::Int = 3)
+
+	log = "all_users(min_tweets=$min_tweets)"
+
+	function actors(df::DataFrame)
+		# Take only users who tweeted more than min_tweets
+		df = df[df.effective_category .== "tweet", :]
+		df = transform(groupby(df, "username"), "created_at" => length => "tweet_count")
+		df = df[df.tweet_count .>= min_tweets, :]
+		df.actor = df.username
+		return df
+	end
+
+	return actors, log
+end
+
+
+
+function IP_scores(df::DataFrame; min_tweets::Int = 3, max_iter::Int = 200, max_residual::Real = 1e-3)
+
+	weights, u, v, nodes = compute_IP_graph(df, min_tweets=min_tweets)
+	I, P, residuals = compute_IP_scores(u, v, max_iter=max_iter, max_residual=max_residual)
+
+	# Pick only tweets by the users considered by the IP scores and discard the others
+	isin = (x,y) -> x in y
+	df = df[isin.(df.username, Ref(nodes)), :]
+	df = df[df.effective_category .== "tweet", :]
+
+	sorting = sortperm(I, rev=true)
+	nodes = nodes[sorting]
+	I = I[sorting]
+	P = P[sorting]
+
+	# Add scores to the dataframe
+	I_dict = Dict(nodes .=> I)
+	P_dict = Dict(nodes .=> P)
+	df = transform(df, "username" => ByRow(x -> I_dict[x]) => "I_score")
+	df = transform(df, "username" => ByRow(x -> P_dict[x]) => "P_score")
+
+
+	Imax = I[500]
+	# TODO : CHANGE 
+	df = df[df.I_score .> Imax, :]
+
+	df.actor = df.username
+
 	return df
+
 end
 
 
@@ -69,11 +135,15 @@ end
 actor_options = [
 	country,
 	follower_count,
-	username
+	all_users,
+	IP_scores
 ]
 
 
-function IP_graph(df, min_tweets::Int = 2)
+"""
+Create the graph and matrices needed to compute Influence Passivity (IP) scores of users.
+"""
+function compute_IP_graph(df; min_tweets::Int = 3)
 
     tweeters = df[df.effective_category .== "tweet", :]
     retweeters = df[df.effective_category .== "retweet", :]
@@ -125,7 +195,10 @@ function IP_graph(df, min_tweets::Int = 2)
 end
 
 
-function IP_scores(u, v, max_iter::Int = 200, max_residual::Real = 1e-3)
+"""
+Compute the Influence Passivity (IP) scores of users from matrices u and v as returned by IP_graph.
+"""
+function compute_IP_scores(u, v; max_iter::Int = 200, max_residual::Real = 1e-3)
 
     # Set singleton dimensions for correct broadcast later
     I_old = ones(size(u)[1], 1)
@@ -147,7 +220,7 @@ function IP_scores(u, v, max_iter::Int = 200, max_residual::Real = 1e-3)
         I = I ./ sum(I)
 
 		count += 1
-		residual = sum(abs.(I_old .- I)) + sum(abs.(P_old .- P))
+		residual = norm(I_old .- I, 1) + norm(P_old .- P, 1)
         push!(residuals, residual)
 
 		P_old = P

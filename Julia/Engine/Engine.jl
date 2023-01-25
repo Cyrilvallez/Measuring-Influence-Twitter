@@ -33,7 +33,7 @@ function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
     data = load_dataset(dataset, N_days=N_days)
 
     # Pre-process the data (partitions, actions and actors)
-    df, _, _, _ = preprocessing(data, agents)
+    df = preprocessing(data, agents)
 
     # Performs all computations (create time-series, compute graphs, compute influence cascades)
     influence_graphs, influence_cascades = observe(df, pipeline)
@@ -64,7 +64,7 @@ function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
     data = load_dataset(dataset, N_days=N_days)
 
     # Pre-process the data (partitions, actions and actors)
-    df, _, _, _ = preprocessing(data, agents)
+    df = preprocessing(data, agents)
 
     # Performs all computations (create time-series, compute graphs, compute influence cascades)
     # Note that most (all) of the time the difference between pipelines will be for graph creation, thus

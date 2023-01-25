@@ -8,7 +8,7 @@ import Random
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors, ..PreProcessing
 
-export load_dataset, make_simplifier, save_data, load_data, log_experiment
+export load_dataset, make_simplifier, partitions_actions_actors, save_data, load_data, log_experiment
 export Dataset, COP26, COP27, Skripal, RandomDays
 
 
@@ -26,10 +26,18 @@ struct RandomDays <: Dataset end
 """
 Conveniently load a file containing lines of json objects into a DataFrame (or as a list of dictionaries).
 """
-function load_json(filename::String, to_df::Bool = true, skiprows::Int = 0)
+function load_json(filename::String; to_df::Bool = true, skiprows::Int = 0)
 
     lines = readlines(filename)
     dics = [JSON.parse(line, null=missing) for line in lines[(skiprows+1):end]]
+
+    # Convert dates to datetime
+    if "created_at" in keys(dics[1]) && typeof(dics[1]["created_at"]) <: AbstractString
+        to_datetime = x -> DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS")
+        for dic in dics
+            dic["created_at"] = to_datetime(dic["created_at"])
+        end
+    end
 
     if to_df
         return DataFrame(dics)
@@ -86,10 +94,6 @@ Change the days of the random day dataset so that they are artificially consecut
 """
 function process_random_dataset!(data::DataFrame)
 
-    # Convert string dates to datetimes 
-    to_datetime = x -> DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS")
-    data."created_at" = to_datetime.(data."created_at")
-
     # Shift the random days in the data so that they are consecutive (but we don't touch the time part)
     days = Date.(data.created_at)
     unique_days = sort(unique(days))
@@ -132,6 +136,21 @@ function make_simplifier(edge_type::String, cuttoff::Real, actions::Vector{Strin
         idx = findfirst(edge_type .== edge_types)
         return x -> (x[idx] > cuttoff)
     end
+end
+
+
+
+"""
+Return the partitions, actions and actors in the correct order as they appear in the indexing of the graphs matrices.
+"""
+function partitions_actions_actors(df::DataFrame)
+
+    partitions = sort(unique(df.partition))
+    actions = sort(unique(df.action))
+    actors = [sort(unique(df[df.partition .== partition, "actor"])) for partition in partitions]
+
+    return partitions, actions, actors
+
 end
 
 
@@ -246,7 +265,11 @@ function log_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
 
     dic["Preprocessing"]["partition"] = string(agents.partition_function)
     dic["Preprocessing"]["action"] = string(agents.action_function)
-    dic["Preprocessing"]["actor"] = string(agents.actor_function)
+    if agents.actors_parameters == ""
+        dic["Preprocessing"]["actor"] = string(agents.actor_function)
+    else
+        dic["Preprocessing"]["actor"] = agents.actor_parameters
+    end
 
     dic["Time_series"]["time_resolution"] = pipeline.time_series_generator.time_interval
     dic["Time_series"]["standardize"] = pipeline.time_series_generator.standardize

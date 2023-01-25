@@ -96,7 +96,7 @@ Note : the distances will be computed using Euclidean distance.
 
 """
 function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100, 
-    limit::String = "x -> minimum(x)/4", threshold::Real = 0.01, seed::Int = 1234, B::Int = 10, d::Int = 5, τ::Int = 1)
+    limit::String = "x -> minimum(x)/4", threshold::Real = 0.001, seed::Int = 1234, B::Int = 10, d::Int = 5, τ::Int = 1)
 
     func(x, y) = pvalue(jdd(OneSampleTTest, x, y, B=B, D=d, τ=τ, μ0=0.0), tail=:right)
 
@@ -135,39 +135,48 @@ function observe(time_series::Vector{Vector{Matrix{Float64}}}, ig::InfluenceGrap
 
     # Initialize final output
     adjacencies = InfluenceGraphs(undef, length(time_series))
+    for (m, partition) in enumerate(time_series)
+        partitionwise_adjacency = SingleInfluenceGraph(undef, length(partition), length(partition))
+        for i = 1:length(partition), j = 1:length(partition)
+            # Fill with -1s (that is how we encore unreachable values, i.e when the time series are empty)
+            edge_matrix = fill(-1.0, N_actions, N_actions)
+            @inbounds partitionwise_adjacency[i,j] = edge_matrix
+        end
+        @inbounds adjacencies[m] = partitionwise_adjacency
+    end
+
 
     # Iterate on partitions
     for (m, partition) in enumerate(time_series)
 
-        # Initialize adjacency matrix for the partition
-        partitionwise_adjacency = SingleInfluenceGraph(undef, length(partition), length(partition))
-
         # Iterate 2 times on all actors
         for i = 1:length(partition), j = 1:length(partition)
 
-            # Initialize the transfer entropy matrix between 2 actors (which is an edge in the actor graph)
-            edge_matrix = fill(-1.0, N_actions, N_actions)
-
             if i != j
+
                 # Iterate on actions of each actor i and j
-                for k = 1:N_actions, l = 1:N_actions
-                    time_serie_1 = partition[i][:, k]
-                    time_serie_2 = partition[j][:, l]
-                    # If this is the case (at least one time serie is all 0), then there cannot be any influence between the two -> we encode it with -1
-                    if iszero(time_serie_1) || iszero(time_serie_2)
-                        causality_measure = -1.0
-                    # Compute causality between actor i and j and actions k and l
+                for k = 1:N_actions 
+                    @inbounds time_serie_1 = @view partition[i][:, k]
+                    if iszero(time_serie_1)
+                        continue
                     else
-                        causality_measure = ig.causal_function(time_serie_1, time_serie_2)
+                        for l = 1:N_actions
+                            @inbounds time_serie_2 = @view partition[j][:, l]
+                            if iszero(time_serie_2)
+                                continue
+                            else
+                                # Compute causality between actor i and j and actions k and l
+                                causality_measure = ig.causal_function(time_serie_1, time_serie_2)
+                            end
+                            @inbounds adjacencies[m][i,j][k, l] = isnan(causality_measure) ? 0. : causality_measure
+                        end
                     end
-                    edge_matrix[k, l] = isnan(causality_measure) ? 0. : causality_measure
                 end
+                
             end
-            # cast it into the partition-wise adjacency matrix
-            partitionwise_adjacency[i,j] = edge_matrix
+
         end
-        # cast it in the total output vector
-        adjacencies[m] = partitionwise_adjacency
+        
     end
 
     return adjacencies

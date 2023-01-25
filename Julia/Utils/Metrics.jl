@@ -3,7 +3,7 @@ module Metrics
 using DataFrames, Graphs, SimpleWeightedGraphs
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
-using ..Helpers: make_simplifier
+using ..Helpers: make_simplifier, partitions_actions_actors
 using ..Sensors: InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
 
 export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities
@@ -11,9 +11,7 @@ export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_ce
 
 function edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real) 
 
-    # Actions and partitions are represented in the order they appear in sort(unique(df)) in the adjacency matrix
-    actions = sort(unique(df.action))
-    partitions = sort(unique(df.partition))
+   partitions, actions, _ = partitions_actions_actors(df)
 
     # Small hack to rename the case when there are no partitions
     if partitions == ["Full dataset"]
@@ -110,22 +108,20 @@ Compute the betweenness centralities of each partition of the influence graphs.
 """
 function betweenness_centralities(influence_graphs::InfluenceGraphs, df::DataFrame; cuttoff::Real = 0.0, edge_type::AbstractString = "Any Edge")
 
-    actors = sort(unique(df.actor))
-    actions = sort(unique(df.action))
+    _, actions, actors = partitions_actions_actors(df)
 
     # Create simple graphs by removing weights not needed for the centrality
     simplifier = make_simplifier(edge_type, cuttoff, actions)
     simple_graphs = [SimpleDiGraph(simplifier.(graph)) for graph in influence_graphs]
     betweenness = [betweenness_centrality(graph, normalize=true) for graph in simple_graphs]
 
-    corresponding_actors = []
     for i = 1:length(betweenness)
         sorting = sortperm(betweenness[i], rev=true)
         betweenness[i] = betweenness[i][sorting]
-        push!(corresponding_actors, actors[sorting])
+        actors[i] = actors[i][sorting]
     end
 
-    return betweenness, corresponding_actors
+    return betweenness, actors
 end
 
 
@@ -135,8 +131,7 @@ Compute the in-degree centralities of each partition of the influence graphs.
 """
 function indegree_centralities(influence_graphs::InfluenceGraphs, df::DataFrame; cuttoff::Real = 0.0, edge_type::AbstractString = "Any Edge")
 
-    actors = sort(unique(df.actor))
-    actions = sort(unique(df.action))
+    _, actions, actors = partitions_actions_actors(df)
 
     # Create simple graphs by removing weights not needed for the centrality
     simplifier = make_simplifier(edge_type, cuttoff, actions)
@@ -147,10 +142,10 @@ function indegree_centralities(influence_graphs::InfluenceGraphs, df::DataFrame;
     for i = 1:length(indegree_centrality)
         sorting = sortperm(indegree_centrality[i], rev=true)
         indegree_centrality[i] = indegree_centrality[i][sorting]
-        push!(corresponding_actors, actors[sorting])
+        actors[i] = actors[i][sorting]
     end
 
-    return indegree_centrality, corresponding_actors
+    return indegree_centrality, actors
 end
 
 
@@ -160,8 +155,7 @@ Compute the out-degree centralities of each partition of the influence graphs.
 """
 function outdegree_centralities(influence_graphs::InfluenceGraphs, df::DataFrame; cuttoff::Real = 0.0, edge_type::AbstractString = "Any Edge")
 
-    actors = sort(unique(df.actor))
-    actions = sort(unique(df.action))
+    _, actions, actors = partitions_actions_actors(df)
 
     # Create simple graphs by removing weights not needed for the centrality
     simplifier = make_simplifier(edge_type, cuttoff, actions)
@@ -172,10 +166,10 @@ function outdegree_centralities(influence_graphs::InfluenceGraphs, df::DataFrame
     for i = 1:length(outdegree_centrality)
         sorting = sortperm(outdegree_centrality[i], rev=true)
         outdegree_centrality[i] = outdegree_centrality[i][sorting]
-        push!(corresponding_actors, actors[sorting])
+        actors[i] = actors[i][sorting]
     end
 
-    return outdegree_centrality, corresponding_actors
+    return outdegree_centrality, actors
 end
 
 

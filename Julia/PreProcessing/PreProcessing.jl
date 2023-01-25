@@ -1,10 +1,10 @@
 module PreProcessing
 
-using DataFrames, Dates
+using DataFrames, Dates, DataStructures
 
 export no_partition, sentiment, cop_26_dates, cop_27_dates
 export trust_score, trust_popularity_score
-export country, follower_count, username
+export country, follower_count, all_users, IP_scores
 export partition_options, action_options, actor_options
 export PreProcessingAgents, preprocessing, preprocessing_random
 
@@ -18,6 +18,9 @@ struct PreProcessingAgents
     partition_function::Function
     action_function::Function
     actor_function::Function
+    # Dump some parameters so we can have access to them later
+    actor_parameters::AbstractString
+
 
     # Inner constructor to check validity (and order) of arguments
     function PreProcessingAgents(partition, action, actor)
@@ -27,22 +30,31 @@ struct PreProcessingAgents
         if !(action in action_options)
             throw(ArgumentError("The action function is not valid (or you provided arguments in the wrong order : it should be partition-action-actor)."))
         end
-        if !(actor in actor_options)
-            throw(ArgumentError("The actor function is not valid (or you provided arguments in the wrong order : it should be partition-action-actor)."))
+        if typeof(actor) <: Function
+            actor_func = actor
+            params = ""
+        elseif typeof(actor) <: Tuple
+            if !(length(actor) == 2 && typeof(actor[1]) <: Function && typeof(actor[2]) <: AbstractString)
+                throw(ArgumentError("If you pass a Tuple as actor, it must be a function and a String."))
+            end
+            actor_func = actor[1]
+            params = actor[2]
+        else
+            throw(ArgumentError("Actor must be a function or a Tuple consisting of a function and a String."))
         end
-        return new(partition, action, actor)
+        return new(partition, action, actor_func, params)
     end
 
 end
 
 
 function PreProcessingAgents()
-    return PreProcessingAgents(cop_26_dates, trust_score, follower_count)
+    return PreProcessingAgents(cop_26_dates, trust_score, follower_count())
 end
 
 
 function PreProcessingAgents(partition::Function)
-    return PreProcessingAgents(partition, trust_score, follower_count)
+    return PreProcessingAgents(partition, trust_score, follower_count())
 end
 
 
@@ -54,18 +66,10 @@ function preprocessing(data::DataFrame, agents::PreProcessingAgents)
 
     # Remove possible rows without url domain, and convert string dates to datetimes
     data = data[.~ismissing.(data."domain"), :]
-    if eltype(data."created_at") == String
-        to_datetime = x -> DateTime(split(x, '.')[1], "yyyy-mm-ddTHH:MM:SS")
-        data."created_at" = to_datetime.(data."created_at")
-    end
 
     df = data |> agents.partition_function |> agents.action_function |> agents.actor_function
 
-    partitions = sort(unique(df.partition))
-    actions = sort(unique(df.action))
-    actors = sort(unique(df.actor))
-
-    return df, partitions, actions, actors
+    return df
 
 end
 

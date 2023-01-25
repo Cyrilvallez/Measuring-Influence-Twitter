@@ -6,7 +6,7 @@ include("Engine/Engine.jl")
 using .Engine
 
 # Define datasets
-datasets = [COP26]#, COP27, RandomDays]
+datasets = [COP26, ]#, COP27, RandomDays]
 
 # Define partition, action and actor for each dataset
 agents_cop26 = PreProcessingAgents(cop_26_dates, trust_score, follower_count)

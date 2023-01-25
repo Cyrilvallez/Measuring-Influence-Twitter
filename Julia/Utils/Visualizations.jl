@@ -9,7 +9,7 @@ import Seaborn as sns
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors: SingleInfluenceGraph, InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
-using ..Helpers: make_simplifier
+using ..Helpers: make_simplifier, partitions_actions_actors
 using ..Metrics: edge_types
 
 export plot_cascade_sankey,
@@ -46,8 +46,8 @@ Plot an influence cascade as a Sankey diagram.
 """
 function plot_cascade_sankey(influence_cascade::InfluenceCascade, df::DataFrame)
 
-    # Actions are represented in the order they appear in sort(unique(df.action)) in the adjacency matrix
-    actions = sort(unique(df.action))
+    # Get actions
+    _, actions, _ = partitions_actions_actors(df)
 
     # Bank of color because PlutoPlotly does not support the `colorant"blue"` colors in
     # Pluto notebooks
@@ -136,13 +136,22 @@ end
 
 
 """
-Plot the graph corresponding to the matrix adjacency, for one type of edge (edges are matrices).
+Plot the graph corresponding to the given partition of the influence graphs, for one type of edge (edges are matrices).
 """
-function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Real; edge_type::AbstractString = "Any Edge", print_node_names::Bool = false)
+function plot_graph(graphs::InfluenceGraphs, df::DataFrame, partition::Union{Int, String}, cuttoff::Real; edge_type::AbstractString = "Any Edge", print_node_names::Bool = false)
 
-    # Actors and actions are represented in the order they appear in sort(unique(df."actor")) in the adjacency matrix
-    node_labels = sort(unique(df.actor))
-    actions = sort(unique(df.action))
+    partitions, actions, node_labels = partitions_actions_actors(df)
+    if typeof(partition) == Int
+        idx = partition
+    else
+        if !(partition in partitions)
+            throw(ArgumentError("The partition you asked for is incorrect. It must be one of $partitions."))
+        end
+        idx = findall(partition .== partitions)[1]
+    end
+
+    node_labels = node_labels[idx]
+    adjacency = graphs[idx]
 
     simplifier = make_simplifier(edge_type, cuttoff, actions)
 
@@ -158,7 +167,7 @@ function plot_graph(adjacency::SingleInfluenceGraph, df::DataFrame, cuttoff::Rea
     connected_vertices_labels = node_labels[vmap]
 
     # We draw aggregate actors as red nodes, and individuals as blue nodes
-    regex = r"^[0-9]+ to [0-9]+ followers$"
+    regex = r"^AGG[0-9]+:"
     colors = Vector{RGB}(undef, length(connected_vertices_labels))
     for (i, label) in enumerate(connected_vertices_labels)
         if occursin(regex, label)
@@ -220,9 +229,7 @@ function plot_betweenness_centrality(influence_graphs::InfluenceGraphs, df::Data
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
     end
 
-    # Actors and partitions are represented in the order they appear in sort(unique(df)) in the adjacency matrix
-    actors = sort(unique(df."actor"))
-    partitions = sort(unique(df.partition))
+    partitions, _, _ = partitions_actions_actors(df)
 
     # In this case remove default value
     if length(partitions) != 3 && reorder == [2,3,1]
@@ -239,18 +246,6 @@ function plot_betweenness_centrality(influence_graphs::InfluenceGraphs, df::Data
         partitions = partitions[reorder]
         betweenness = betweenness[reorder]
     end
-
-    # plt.figure()
-    # for i = 1:length(partitions)
-    #     plt.plot(1:length(actors), betweenness[i], label=partitions[i])
-    # end
-    # plt.xlabel("Node index")
-    # plt.ylabel("Betweenness centrality")
-    # plt.legend()
-    # plt.grid()
-    # if save
-    #     plt.savefig(filename, bbox_inches="tight", dpi=400)
-    # end
 
     plt.figure()
     sns.violinplot(betweenness, width=width, cut=cut)

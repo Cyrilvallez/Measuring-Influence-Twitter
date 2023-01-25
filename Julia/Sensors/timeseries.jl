@@ -22,10 +22,9 @@ end
 """
 Compute the time series for each actor and actions, inside each partition. The order of each is the natural sorted order  
 (as returned by sort(unique()); e.g the first element times_series[1] correspond to the partition returned by
-sort(unique(data.partition))[1]). In the same way, the first actor in the first partition is the one returned 
-by sort(unique(data.actor))[1]. Same goes for the actions.  
-Note that the time series inside each partition are not necessarily the same length, (e.g partitions based on time), however 
-they will all include all the actors and actions in the dataset, even if some actors (or actions) are not present for one or more partition.
+sort(unique(data.partition))[1]). Same goes for the actions and actors.  
+Note that the time series inside each partition are not necessarily the same length, (e.g partitions based on time), and the number of actors
+inside each partition is variable. 
 
 CAUTION : In order to get the time series correctly, we create column :time_bin and sort the DataFrame according to it inplace. The order of the rows will be modified.
 """
@@ -36,13 +35,11 @@ function observe(data::DataFrame, tsg::TimeSeriesGenerator)
     # We sort the dataframe in place ! The order of the rows will be modified.
     sort!(data, :time_bin)
 
-    # Compute unique values for all quantities, and sort them to give a consistent ordering
-    actors = sort(unique(data[!, tsg.actor_column]))
+    # Sort to give a consistent ordering
     actions = sort(unique(data[!, tsg.action_column]))
     partitions = sort(unique(data[!, tsg.partition_column]))
 
     # Compute length of all unique values
-    N_actors = length(actors)
     N_actions = length(actions)
     N_partitions = length(partitions)
 
@@ -51,15 +48,19 @@ function observe(data::DataFrame, tsg::TimeSeriesGenerator)
 
     for (i, partition) in enumerate(partitions)
 
-        # Initialize the time serie for one partition and all actors
-        partitionwise_time_series = Vector{Matrix{Float64}}(undef, N_actors)
         # Select relevant data portion
         data_per_partition = data[data[!, tsg.partition_column] .== partition, :]
+
+        # Find actors corresponding to given partition
+        actors = sort(unique(data_per_partition[!, tsg.actor_column]))
+
+        # Initialize the time serie for one partition and all actors
+        partitionwise_time_series = Vector{Matrix{Float64}}(undef, length(actors))
 
         # Compute unique time values for only inside the given partition (not the whole dataframe), because a partition made 
         # on time of tweets (corresponding to a sliding window) should not contain 0s for all times not accessible for them
         # e.g if the partitions are "Before COP26" and "After COP26" it does not make sense to include times "After COP26"
-        # in the time series of the partition "Before COP26", as they will all bo 0s.
+        # in the time series of the partition "Before COP26", as they will all be 0s.
         # Note that time_bin is already sorted since we sorted the dataframe by it
         times = unique(data_per_partition.time_bin)
         N_times = length(times)
