@@ -30,6 +30,7 @@ julia julia_requirements.jl
 rm ~/miniconda.sh
 rm ~/julia.tar.gz
 
-# Install github from conda and folders
-conda install gh --channel conda-forge
+# Install github credential cache system and create folders
+conda install gh --channel conda-forge -y
+mkdir Data
 mkdir Data/Twitter

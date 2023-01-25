@@ -1,14 +1,5 @@
 using DataFrames, SparseArrays, LinearAlgebra
-
-"""
-Define actor as countries, using the country_code in the tweeets.
-"""
-function country(df::DataFrame)
-	df = df[.!ismissing.(df."country_code"), :]
-	df.actor = df."country_code"
-	return df
-end
-
+using Logging
 
 
 """
@@ -16,13 +7,103 @@ Define actor using the number of followers of each individual in the dataset.
 The first N=actor_number users with most followers will be treated as individual actors,  
 while the other ones will be aggregated in bins of M=aggregate_size people.
 """
-function follower_count(;min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000)
+function follower_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000)
 
-	log = "follower_count(min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
+	log = "follower_count(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
 
-	function actors(df::DataFrame)
+	# Apply the function on each partition
+	if by_partition
+		func = df -> combine(_follower_count(min_tweets, actor_number, aggregate_size), groupby(df, "partition"))
+	# Directly apply the function on whole dataframe
+	else
+		func = _follower_count(min_tweets, actor_number, aggregate_size)
+	end
 
-		# Take only users who tweeted more than min_tweets
+	return func, log
+end
+
+
+
+"""
+Define actor using the username in the tweets, thus every people in the dataset is a different actor.
+"""
+function all_users(; by_partition::Bool = true, min_tweets::Int = 3)
+
+	log = "all_users(by_partition=$by_partition, min_tweets=$min_tweets)"
+
+	# Apply the function on each partition
+	if by_partition
+		func = df -> combine(_all_users(min_tweets), groupby(df, "partition"))
+	# Directly apply the function on whole dataframe
+	else
+		func = _all_users(min_tweets)
+	end
+
+	return func, log
+end
+
+
+
+function retweet_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000)
+
+	log = "retweet_count(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
+
+	# Apply the function on each partition
+	if by_partition
+		func = df -> combine(_retweet_count(min_tweets, actor_number, aggregate_size), groupby(df, "partition"))
+	# Directly apply the function on whole dataframe
+	else
+		func = _retweet_count(min_tweets, actor_number, aggregate_size)
+	end
+
+	return func, log
+end
+
+
+
+function IP_scores(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000, max_iter::Int = 200, max_residual::Real = 1e-3)
+
+	log = "IP_scores(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size, max_iter=$max_iter, max_residual=$max_residual)"
+
+	# Apply the function on each partition
+	if by_partition
+		func = df -> combine(_IP_scores(min_tweets, actor_number, aggregate_size, max_iter, max_residual), groupby(df, "partition"))
+	# Directly apply the function on whole dataframe
+	else
+		func = _IP_scores(min_tweets, actor_number, aggregate_size, max_iter, max_residual)
+	end
+
+	return func, log
+end
+
+
+
+
+actor_options = [
+	follower_count,
+	all_users,
+	retweet_count,
+	IP_scores
+]
+
+
+
+
+
+
+
+function _follower_count(min_tweets::Int, actor_number::Union{Int, AbstractString}, aggregate_size::Int)
+
+	possibilities = ["all"]
+	if typeof(actor_number) <: AbstractString
+		if !(actor_number in possibilities)
+			throw(ArgumentError("Actor number must be either a positive integer or one of $possibilities"))
+		end
+	end
+
+	function _follower_count_wrapped(df)
+
+		# Take only users who tweeted more than min_tweets 
 		df = df[df.effective_category .== "tweet", :]
 		df = transform(groupby(df, "username"), "created_at" => length => "tweet_count")
 		df = df[df.tweet_count .>= min_tweets, :]
@@ -41,8 +122,13 @@ function follower_count(;min_tweets::Int = 3, actor_number::Int = 500, aggregate
 
 		M = length(users)
 		actors = Vector{String}(undef, M)
+
+		if typeof(actor_number) <: Int && actor_number > M
+			@warn "The actor number you provided is larger than the maximum of possible actors. Setting actor_number back to \"all\"."
+			actor_number = "all"
+		end
 		
-		if actor_number == -1
+		if actor_number == "all"
 			actor_dict = Dict(users .=> users)
 		else
 			for i = 1:actor_number
@@ -72,20 +158,16 @@ function follower_count(;min_tweets::Int = 3, actor_number::Int = 500, aggregate
 
 	end
 
-	return actors, log
+	return _follower_count_wrapped
+
 end
 
 
 
-"""
-Define actor using the username in the tweets, thus every people in the dataset is a different actor.
-"""
-function all_users(;min_tweets::Int = 3)
+function _all_users(min_tweets::Int = 3)
 
-	log = "all_users(min_tweets=$min_tweets)"
-
-	function actors(df::DataFrame)
-		# Take only users who tweeted more than min_tweets
+	function _all_users_wrapped(df)
+		# Take only users who tweeted more than min_tweets 
 		df = df[df.effective_category .== "tweet", :]
 		df = transform(groupby(df, "username"), "created_at" => length => "tweet_count")
 		df = df[df.tweet_count .>= min_tweets, :]
@@ -93,51 +175,172 @@ function all_users(;min_tweets::Int = 3)
 		return df
 	end
 
-	return actors, log
+	return _all_users_wrapped
 end
 
 
 
-function IP_scores(df::DataFrame; min_tweets::Int = 3, max_iter::Int = 200, max_residual::Real = 1e-3)
+function _retweet_count(min_tweets::Int, actor_number::Union{Int, AbstractString}, aggregate_size::Int)
 
-	weights, u, v, nodes = compute_IP_graph(df, min_tweets=min_tweets)
-	I, P, residuals = compute_IP_scores(u, v, max_iter=max_iter, max_residual=max_residual)
+	possibilities = ["all", "all_positive"]
+	if typeof(actor_number) <: AbstractString
+		if !(actor_number in possibilities)
+			throw(ArgumentError("Actor number must be either a positive integer or one of $possibilities"))
+		end
+	end
 
-	# Pick only tweets by the users considered by the IP scores and discard the others
-	isin = (x,y) -> x in y
-	df = df[isin.(df.username, Ref(nodes)), :]
-	df = df[df.effective_category .== "tweet", :]
+	function _retweet_count_wrapped(df)
 
-	sorting = sortperm(I, rev=true)
-	nodes = nodes[sorting]
-	I = I[sorting]
-	P = P[sorting]
+		tweeters = df[df.effective_category .== "tweet", :]
+		retweeters = df[df.effective_category .== "retweet", :]
 
-	# Add scores to the dataframe
-	I_dict = Dict(nodes .=> I)
-	P_dict = Dict(nodes .=> P)
-	df = transform(df, "username" => ByRow(x -> I_dict[x]) => "I_score")
-	df = transform(df, "username" => ByRow(x -> P_dict[x]) => "P_score")
+		tweeters = transform(groupby(tweeters, "username"), "created_at" => length => "tweet_count")
+		tweeters = tweeters[tweeters.tweet_count .>= min_tweets, :]
+		users = unique(tweeters.username)
+
+		rt_count = zeros(size(users))
+
+		for (i, user) in enumerate(users)
+			rt_count[i] = sum(retweeters.retweet_from .== user)
+		end
+
+		# Add retweet_count to the dataframe
+		rt_dic = Dict(users .=> rt_count)
+		df = transform(tweeters, "username" => ByRow(x -> rt_dic[x]) => "retweet_count")
+
+		# sort the users in desending order of follower_count
+		sorting = sortperm(rt_count, rev=true)
+		rt_count = rt_count[sorting]
+		users = users[sorting]
+
+		M = length(users)
+		actors = Vector{String}(undef, M)
+
+		if typeof(actor_number) <: Int && actor_number > M
+			@warn "The actor number you provided is larger than the maximum of possible actors. Setting actor_number back to \"all\"."
+			actor_number = "all"
+		end
+
+		if actor_number == "all"
+			df.actor = df.username
+			return df
+		elseif actor_number == "all_positive"
+			actor_number = sum(rt_count .> 0)
+		end
 
 
-	Imax = I[500]
-	# TODO : CHANGE 
-	df = df[df.I_score .> Imax, :]
+		for i = 1:actor_number
+			actors[i] = users[i]
+		end
 
-	df.actor = df.username
+		L = aggregate_size
+		N = actor_number += 1
+		counter = 0
+		while true
+			counter += 1
+			if N + L <= M
+				actors[N:(N+L)] .= "AGG$(counter): $(rt_count[N]) to $(rt_count[N+L]) retweets"
+			else
+				actors[N:end] .= "AGG$(counter): $(rt_count[N]) to $(rt_count[end]) retweets"
+				break
+			end
+			N += L
+		end
 
-	return df
+		actor_dict = Dict(users .=> actors)
+		
+		df = transform(df, "username" => ByRow(x -> actor_dict[x]) => "actor")
+
+		return df
+
+	end
+
+	return _retweet_count_wrapped
 
 end
 
 
 
-actor_options = [
-	country,
-	follower_count,
-	all_users,
-	IP_scores
-]
+
+
+
+function _IP_scores(min_tweets::Int, actor_number::Union{Int, AbstractString}, aggregate_size::Int, max_iter::Int, max_residual::Real)
+
+	possibilities = ["all", "all_positive"]
+	if typeof(actor_number) <: AbstractString
+		if !(actor_number in possibilities)
+			throw(ArgumentError("Actor number must be either a positive integer or one of $possibilities"))
+		end
+	end
+
+	function _IP_scores_wrapped(df)
+
+		weights, u, v, nodes = compute_IP_graph(df, min_tweets=min_tweets)
+		I, P, residuals = compute_IP_scores(u, v, max_iter=max_iter, max_residual=max_residual)
+
+		# Pick only tweets by the users considered by the IP scores and discard the others
+		isin = (x,y) -> x in y
+		df = df[isin.(df.username, Ref(nodes)), :]
+		df = df[df.effective_category .== "tweet", :]
+
+		sorting = sortperm(I, rev=true)
+		nodes = nodes[sorting]
+		I = I[sorting]
+		P = P[sorting]
+
+		# Add scores to the dataframe
+		I_dict = Dict(nodes .=> I)
+		P_dict = Dict(nodes .=> P)
+		df = transform(df, "username" => ByRow(x -> I_dict[x]) => "I_score")
+		df = transform(df, "username" => ByRow(x -> P_dict[x]) => "P_score")
+
+
+		M = length(nodes)
+		actors = Vector{String}(undef, M)
+
+		if typeof(actor_number) <: Int && actor_number > M
+			@warn "The actor number you provided is larger than the maximum of possible actors. Setting actor_number back to \"all\"."
+			actor_number = "all"
+		end
+		
+		if actor_number == "all"
+			df.actor = df.username
+			return df
+		elseif actor_number == "all_positive"
+			actor_number = sum(I .> 0)
+		end
+
+
+		for i = 1:actor_number
+			actors[i] = nodes[i]
+		end
+
+		L = aggregate_size
+		N = actor_number += 1
+		counter = 0
+		while true
+			counter += 1
+			if N + L <= M
+				actors[N:(N+L)] .= "AGG$(counter): $(I[N]) to $(I[N+L]) I score"
+			else
+				actors[N:end] .= "AGG$(counter): $(I[N]) to $(I[end]) I score"
+				break
+			end
+			N += L
+		end
+
+		actor_dict = Dict(nodes .=> actors)
+		
+		df = transform(df, "username" => ByRow(x -> actor_dict[x]) => "actor")
+
+		return df
+
+	end
+
+	return _IP_scores_wrapped
+
+end
+
 
 
 """
@@ -195,6 +398,7 @@ function compute_IP_graph(df; min_tweets::Int = 3)
 end
 
 
+
 """
 Compute the Influence Passivity (IP) scores of users from matrices u and v as returned by IP_graph.
 """
@@ -233,3 +437,4 @@ function compute_IP_scores(u, v; max_iter::Int = 200, max_residual::Real = 1e-3)
 	return I, P, residuals
 
 end
+

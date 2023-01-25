@@ -4,9 +4,9 @@ using DataFrames, Dates, DataStructures
 
 export no_partition, sentiment, cop_26_dates, cop_27_dates
 export trust_score, trust_popularity_score
-export country, follower_count, all_users, IP_scores
-export partition_options, action_options, actor_options
-export PreProcessingAgents, preprocessing, preprocessing_random
+export follower_count, all_users, retweet_count, IP_scores
+
+export PreProcessingAgents, preprocessing
 
 include("partitions.jl")
 include("actions.jl")
