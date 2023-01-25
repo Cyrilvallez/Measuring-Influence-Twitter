@@ -7,7 +7,7 @@ Define actor using the number of followers of each individual in the dataset.
 The first N=actor_number users with most followers will be treated as individual actors,  
 while the other ones will be aggregated in bins of M=aggregate_size people.
 """
-function follower_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000)
+function follower_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Union{Int, AbstractString} = 500, aggregate_size::Int = 1000)
 
 	log = "follower_count(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
 
@@ -44,7 +44,7 @@ end
 
 
 
-function retweet_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000)
+function retweet_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Union{Int, AbstractString} = 500, aggregate_size::Int = 1000)
 
 	log = "retweet_count(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
 
@@ -61,7 +61,7 @@ end
 
 
 
-function IP_scores(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Int = 500, aggregate_size::Int = 1000, max_iter::Int = 200, max_residual::Real = 1e-3)
+function IP_scores(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Union{Int, AbstractString} = 500, aggregate_size::Int = 1000, max_iter::Int = 200, max_residual::Real = 1e-3)
 
 	log = "IP_scores(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size, max_iter=$max_iter, max_residual=$max_residual)"
 

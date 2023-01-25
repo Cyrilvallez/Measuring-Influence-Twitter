@@ -49,18 +49,18 @@ end
 Constructor using the custom version of transfer entropy, possibly with surrogates.
 """
 function InfluenceGraphGenerator(::Type{SimpleTE}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100,
-    limit::String = "x -> maximum(x)", threshold::Real = 0.04, seed::Int = 1234)
+    limit::String = "x -> maximum(x)", threshold::Real = 0.04)
 
     func(x, y) = TE(Int.(x .> 0), Int.(y .> 0))
 
     if !(isnothing(surrogate) || Nsurro <= 0)
         limit_func = parse_string(limit)
-        measure = _surrogate_wrapper(func, threshold, >, limit_func, surrogate, Nsurro, seed)
+        measure = _surrogate_wrapper(func, threshold, >, limit_func, surrogate, Nsurro)
     else
         measure = func
     end
 
-    params = OrderedDict("function" => "SimpleTE", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "limit" => limit, "threshold" => threshold, "seed" => seed)
+    params = OrderedDict("function" => "SimpleTE", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "limit" => limit, "threshold" => threshold)
     return InfluenceGraphGenerator(measure, params)
 end
 
@@ -96,14 +96,14 @@ Note : the distances will be computed using Euclidean distance.
 
 """
 function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::Union{Surrogate, Nothing} = RandomShuffle(), Nsurro::Int = 100, 
-    limit::String = "x -> minimum(x)/4", threshold::Real = 0.001, seed::Int = 1234, B::Int = 10, d::Int = 5, τ::Int = 1)
+    limit::String = "x -> minimum(x)/4", threshold::Real = 0.001, B::Int = 10, d::Int = 5, τ::Int = 1)
 
     func(x, y) = pvalue(jdd(OneSampleTTest, x, y, B=B, D=d, τ=τ, μ0=0.0), tail=:right)
 
     if !(isnothing(surrogate) || Nsurro <= 0)
         # Make use of surrogates
         limit_func = parse_string(limit)
-        measure = _surrogate_wrapper(func, threshold, <, limit_func, surrogate, Nsurro, seed)
+        measure = _surrogate_wrapper(func, threshold, <, limit_func, surrogate, Nsurro)
     else
         # If the p-value is inferior than threshold, we reject the null hypothesis that the mean is 0, and we accept that as influence (encoded with a 1)
         measure = (x,y) -> func(x,y) < threshold ? 1 : 0
@@ -111,7 +111,7 @@ function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::U
     end
 
     params = OrderedDict("function" => "JointDistanceDistribution", "surrogate" => string(surrogate), "Nsurro" => Nsurro, "limit" => limit, "threshold" => threshold,
-    "seed" => seed, "threshold" => threshold, "B" => B, "d" => d, "tau" => τ)
+    "threshold" => threshold, "B" => B, "d" => d, "tau" => τ)
 
     return InfluenceGraphGenerator(measure, params)
 end
@@ -187,7 +187,7 @@ end
 
 
 
-function _surrogate_wrapper(measure::Function, threshold::Real, comparator::Function, limit::Function, surrogate::Surrogate, Nsurro::Int, seed::Int = 1234)
+function _surrogate_wrapper(measure::Function, threshold::Real, comparator::Function, limit::Function, surrogate::Surrogate, Nsurro::Int)
 
     if (comparator != <) && (comparator != >)
         throw(ArgumentError("This comparator function is not allowed."))
@@ -197,7 +197,7 @@ function _surrogate_wrapper(measure::Function, threshold::Real, comparator::Func
         causality_value = measure(x, y)
         # If comparison pass, we check the same measure with surrogates
         if comparator(causality_value, threshold)
-            generator = surrogenerator(x, surrogate, Random.Xoshiro(seed))
+            generator = surrogenerator(x, surrogate)
             surro_values = Vector(undef, Nsurro)
             for i = 1:Nsurro
                 surro_values[i] = measure(generator(), y)
