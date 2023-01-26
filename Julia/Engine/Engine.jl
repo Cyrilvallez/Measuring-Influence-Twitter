@@ -110,7 +110,7 @@ function verify_experiment_name(experiment_name)
     end
 
     experiment_folder = RESULT_FOLDER * '/' * experiment_name
-    if isdir(experiment_folder)
+    if isdir(experiment_folder) && length(readdir(experiment_folder)) > 0
         throw(ArgumentError("This experiment name is already taken. Please choose another one."))
     else
         # Create the directory
