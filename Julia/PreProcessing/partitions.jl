@@ -43,11 +43,15 @@ end
 
 
 """
-Partition data based on the relative date of COP27.
+Partition data based on the relative date of Skripal.
 """
 function skripal_dates(df::DataFrame)
-	decide = x -> x < Date(2018, 03, 18) ? "Before campaign" : (x > Date(2018, 04, 25) ? "After campaign" : "During campaign")
+	decide = x -> x < Date(2018, 03, 18) ? "Before campaign" : (x > Date(2018, 04, 1) ? "After campaign" : "During campaign")
 	df.partition = decide.(df."created_at")
+
+	# Remove some data acquired to make periods equal (3 periods of 14 days)
+	df = df[df.created_at .>= Date(2018, 03, 04), :]
+	df = df[df.created_at .< Date(2018, 04, 15), :]
 	return df
 end
 

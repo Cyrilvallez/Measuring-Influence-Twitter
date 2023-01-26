@@ -1,21 +1,23 @@
 using Dates, ProgressBars
 using StatsBase: sample
 import Random
+Random.seed!(12)
 
 include("Engine/Engine.jl")
 using .Engine
 
 # Define datasets
-datasets = [COP26, ]#, COP27, RandomDays]
+dataset = RandomDays
 
-# Define partition, action and actor for each dataset
-agents_cop26 = PreProcessingAgents(cop_26_dates, trust_score, follower_count)
-# agents_cop27 = PreProcessingAgents(cop_27_dates, trust_score, follower_count)
-# agents_random = PreProcessingAgents(no_partition, trust_score, follower_count)
-all_agents = [agents_cop26]#, agents_cop27, agents_random]
+# Define partitions, actions and actors
+partitions = no_partition
+actions = trust_score
+actors = all_users(by_partition=true, min_tweets=3)
+
+agents = PreProcessingAgents(partitions, actions, actors)
 
 # Create the experiment names
-experiment_names = ["COP26_JDD_NoSurro"]#, "COP27_TE_NoSurro", "Random_TE_NoSurro"]
+name = "JDD_all_users/Random"
 
 
 # Define time series arguments
@@ -24,19 +26,21 @@ standardize = true
 
 # Define graph generator arguments
 method = JointDistanceDistribution
-surrogate = nothing
+Nsurro = 100
+threshold = 0.001
+B = 10
+d = 5
+τ = 1
 
 # Define influence cascade arguments
-cuttoff = 0
+cuttoff = WithoutCuttoff
 
 
 tsg = TimeSeriesGenerator(Minute(time_resolution), standardize=standardize)
-ig = InfluenceGraphGenerator(method, surrogate=surrogate) 
+igg = InfluenceGraphGenerator(method, Nsurro=Nsurro, threshold=threshold, B=B, d=d, τ=τ) 
 icg = InfluenceCascadeGenerator(cuttoff)
 
-pipeline = Pipeline(tsg, ig, icg)
+pipeline = Pipeline(tsg, igg, icg)
 
 # Run the experiment
-for (dataset, agents, name) in ProgressBar(zip(datasets, all_agents, experiment_names))
-    run_experiment(dataset, agents, pipeline, save=true, experiment_name=name)
-end
+run_experiment(dataset, agents, pipeline, save=true, experiment_name=name)

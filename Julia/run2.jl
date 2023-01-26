@@ -1,46 +1,46 @@
 using Dates, ProgressBars
 using StatsBase: sample
 import Random
+Random.seed!(12)
 
 include("Engine/Engine.jl")
 using .Engine
 
 # Define datasets
-datasets = [COP26, RandomDays]#COP27, RandomDays]
+dataset = COP27
 
-# Define partition, action and actor for each dataset
-agents_cop26 = PreProcessingAgents(cop_26_dates, trust_score, follower_count)
-# agents_cop27 = PreProcessingAgents(cop_27_dates, trust_score, follower_count)
-agents_random = PreProcessingAgents(no_partition, trust_score, follower_count)
-all_agents = [agents_cop26, agents_random]#agents_cop27, agents_random]
+# Define partitions, actions and actors
+partitions = cop_27_dates
+actions = trust_score
+actors = all_users(by_partition=true, min_tweets=3)
+
+agents = PreProcessingAgents(partitions, actions, actors)
 
 # Create the experiment names
-experiment_names = ["COP26_TE_10_seeds_new", "Random_TE_10_seeds_new"]#"COP27_TE_10_seeds_TEST_2", "Random_TE_10_seeds_TEST_2"]
+name = "JDD_all_users/COP27"
 
 
 # Define time series arguments
 time_resolution = 120
-standardize = false
+standardize = true
 
 # Define graph generator arguments
-method = SimpleTE
+method = JointDistanceDistribution
 Nsurro = 100
-
+threshold = 0.001
+B = 10
+d = 5
+τ = 1
 
 # Define influence cascade arguments
 cuttoff = WithoutCuttoff
 
 
-# Create all pipelines based on different seeds for the same methods
-seeds = sample(Random.Xoshiro(12), 1:10000, 10, replace=false)
-
 tsg = TimeSeriesGenerator(Minute(time_resolution), standardize=standardize)
-igs = [InfluenceGraphGenerator(method, Nsurro=Nsurro, seed=seed) for seed in seeds]
+igg = InfluenceGraphGenerator(method, Nsurro=Nsurro, threshold=threshold, B=B, d=d, τ=τ) 
 icg = InfluenceCascadeGenerator(cuttoff)
 
-pipelines = [Pipeline(tsg, ig, icg) for ig in igs]
+pipeline = Pipeline(tsg, igg, icg)
 
 # Run the experiment
-for (dataset, agents, name) in ProgressBar(zip(datasets, all_agents, experiment_names))
-    run_experiment(dataset, agents, pipelines, save=true, experiment_name=name)
-end
+run_experiment(dataset, agents, pipeline, save=true, experiment_name=name)
