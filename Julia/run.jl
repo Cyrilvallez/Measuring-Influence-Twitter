@@ -17,7 +17,7 @@ actors = all_users(by_partition=true, min_tweets=3)
 agents = PreProcessingAgents(partitions, actions, actors)
 
 # Create the experiment names
-experiment_name = "COP26_JDD_all_users"
+name = "COP26_JDD_all_users"
 
 
 # Define time series arguments
