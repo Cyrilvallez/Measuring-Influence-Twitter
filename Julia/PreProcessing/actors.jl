@@ -103,6 +103,9 @@ function _follower_count(min_tweets::Int, actor_number::Union{Int, AbstractStrin
 
 	function _follower_count_wrapped(df)
 
+		# Need to copy it since we will modify it. Otherwise the change is reflected to all subsequent calls of _follower_count_wrapped(df) !!!
+		actor_number_ = actor_number
+
 		# Take only users who tweeted more than min_tweets 
 		df = df[df.effective_category .== "tweet", :]
 		df = transform(groupby(df, "username"), "created_at" => length => "tweet_count")
@@ -123,20 +126,20 @@ function _follower_count(min_tweets::Int, actor_number::Union{Int, AbstractStrin
 		M = length(users)
 		actors = Vector{String}(undef, M)
 
-		if typeof(actor_number) <: Int && actor_number > M
+		if typeof(actor_number_) <: Int && actor_number_ > M
 			@warn "The actor number you provided is larger than the maximum of possible actors. Setting actor_number back to \"all\"."
-			actor_number = "all"
+			actor_number_ = "all"
 		end
 		
-		if actor_number == "all"
+		if actor_number_ == "all"
 			actor_dict = Dict(users .=> users)
 		else
-			for i = 1:actor_number
+			for i = 1:actor_number_
 				actors[i] = users[i]
 			end
 
 			L = aggregate_size
-			N = actor_number += 1
+			N = actor_number_ += 1
 			counter = 0
 			while true
 				counter += 1
@@ -191,6 +194,9 @@ function _retweet_count(min_tweets::Int, actor_number::Union{Int, AbstractString
 
 	function _retweet_count_wrapped(df)
 
+		# Need to copy it since we will modify it. Otherwise the change is reflected to all subsequent calls of _follower_count_wrapped(df) !!!
+		actor_number_ = actor_number
+
 		tweeters = df[df.effective_category .== "tweet", :]
 		retweeters = df[df.effective_category .== "retweet", :]
 
@@ -216,25 +222,25 @@ function _retweet_count(min_tweets::Int, actor_number::Union{Int, AbstractString
 		M = length(users)
 		actors = Vector{String}(undef, M)
 
-		if typeof(actor_number) <: Int && actor_number > M
+		if typeof(actor_number_) <: Int && actor_number_ > M
 			@warn "The actor number you provided is larger than the maximum of possible actors. Setting actor_number back to \"all\"."
-			actor_number = "all"
+			actor_number_ = "all"
 		end
 
-		if actor_number == "all"
+		if actor_number_ == "all"
 			df.actor = df.username
 			return df
-		elseif actor_number == "all_positive"
-			actor_number = sum(rt_count .> 0)
+		elseif actor_number_ == "all_positive"
+			actor_number_ = sum(rt_count .> 0)
 		end
 
 
-		for i = 1:actor_number
+		for i = 1:actor_number_
 			actors[i] = users[i]
 		end
 
 		L = aggregate_size
-		N = actor_number += 1
+		N = actor_number_ += 1
 		counter = 0
 		while true
 			counter += 1
@@ -275,6 +281,9 @@ function _IP_scores(min_tweets::Int, actor_number::Union{Int, AbstractString}, a
 
 	function _IP_scores_wrapped(df)
 
+		# Need to copy it since we will modify it. Otherwise the change is reflected to all subsequent calls of _follower_count_wrapped(df) !!!
+		actor_number_ = actor_number
+
 		weights, u, v, nodes = compute_IP_graph(df, min_tweets=min_tweets)
 		I, P, residuals = compute_IP_scores(u, v, max_iter=max_iter, max_residual=max_residual)
 
@@ -298,25 +307,25 @@ function _IP_scores(min_tweets::Int, actor_number::Union{Int, AbstractString}, a
 		M = length(nodes)
 		actors = Vector{String}(undef, M)
 
-		if typeof(actor_number) <: Int && actor_number > M
+		if typeof(actor_number_) <: Int && actor_number_ > M
 			@warn "The actor number you provided is larger than the maximum of possible actors. Setting actor_number back to \"all\"."
-			actor_number = "all"
+			actor_number_ = "all"
 		end
 		
-		if actor_number == "all"
+		if actor_number_ == "all"
 			df.actor = df.username
 			return df
-		elseif actor_number == "all_positive"
-			actor_number = sum(I .> 0)
+		elseif actor_number_ == "all_positive"
+			actor_number_ = sum(I .> 0)
 		end
 
 
-		for i = 1:actor_number
+		for i = 1:actor_number_
 			actors[i] = nodes[i]
 		end
 
 		L = aggregate_size
-		N = actor_number += 1
+		N = actor_number_ += 1
 		counter = 0
 		while true
 			counter += 1
