@@ -13,7 +13,7 @@ import argparse
        
 # Path to the news source data
 PROJECT_FOLDER = os.path.dirname(os.path.dirname(__file__))
-NEWS_TABLE = PROJECT_FOLDER + '/Data/news_table_clean.csv'
+NEWS_TABLE = PROJECT_FOLDER + '/Data/newsguard_full_table_clean.csv'
 
             
 # Default attributes we want to keep as the minimum

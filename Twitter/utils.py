@@ -229,3 +229,42 @@ def clean_news_table(path: str = '../Data/news_table-v1-UT60-FM5.csv') -> None:
     news.rename(columns={'Domain': 'domain'}, inplace=True)
     
     news.to_csv('../Data/news_table_clean.csv', index=False)
+    
+    
+    
+def clean_full_newsguard_table(path: str = '../Data/NewsGuard-metadata-2022090100.csv') -> None:
+    """
+    Remove all duplicates in the full newsguard table, and save the clean version to csv.
+
+    Parameters
+    ----------
+    path : str, optional
+        The path to the news table. The default is '../Data/NewsGuard-metadata-2022090100.csv'.
+
+    Returns
+    -------
+    None
+
+    """
+    
+    news = pd.read_csv(path)
+    # Removes duplicate rows
+    news.drop_duplicates(inplace=True, ignore_index=True)
+    # Remove missing score rows
+    news = news[pd.notnull(news.Score)].reset_index(drop=True)
+    # Select only unique domains
+    unique, indices = np.unique(news['Domain'], return_index=True)
+    for name, idx in zip(unique, indices):
+        assert(all(news.loc[news.Domain == name, 'Rating'] == news.loc[idx, 'Rating']))
+    news = news.iloc[indices].reset_index(drop=True)
+    
+    # sort
+    news.sort_values('Domain', inplace=True, ignore_index=True)
+    # Keep only domain and score columns
+    news = news[['Domain', 'Score']]
+    # Rename columns for consistency
+    news.rename(columns={'Domain': 'domain', 'Score': 'score'}, inplace=True)
+    # Create class column based on the newsguard criterion (score of 60)
+    news['class'] = news['score'].apply(lambda x: 'U' if x < 60 else 'T')
+    
+    news.to_csv('../Data/newsguard_full_table_clean.csv', index=False)

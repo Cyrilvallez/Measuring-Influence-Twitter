@@ -87,6 +87,45 @@ function run_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
 end
 
 
+"""
+Run a single experiment on only one of the possible partitions. This is used as a last resort to reduce running time for very long computations (compute each partition on a 
+different machine).
+"""
+function run_experiment(dataset::Type{<:Dataset}, partition::AbstractString, agents::PreProcessingAgents, pipeline::Pipeline; N_days::Int = 13, save::Bool = true, experiment_name = nothing)
+
+    if save && isnothing(experiment_name)
+        throw(ArgumentError("You must provide an experiment name if you want to save the data."))
+    end
+
+    folder = verify_experiment_name(experiment_name)
+
+    # Load the dataset
+    data = load_dataset(dataset, N_days=N_days)
+
+    # Pre-process the data (partitions, actions and actors)
+    df = preprocessing(data, agents)
+    partitions, _, _ = partitions_actions_actors(df)
+
+    if !(partition in partitions)
+        throw(ArgumentError("The partition you want does not exist. It must be one of $partitions."))
+    end
+
+    # Select only one partition
+    df = df[df.partition .== partition, :]
+
+    # Performs all computations (create time-series, compute graphs, compute influence cascades)
+    influence_graphs, influence_cascades = observe(df, pipeline)
+
+    if save
+        save_data(influence_graphs, influence_cascades, df, folder * "data.jld2")
+        log_experiment(dataset, agents, pipeline, folder * "experiment.yml")
+    end
+
+    return influence_graphs, influence_cascades
+
+end
+
+
 
 """
 Provide a constructor to easily set the description of the bar (this is lacking in the original package).

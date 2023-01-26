@@ -16,7 +16,7 @@ actors = follower_count(by_partition=true, min_tweets=3, actor_number=10, aggreg
 agents = PreProcessingAgents(cop_26_dates, actions, actors)
 
 # Create the experiment names
-name = "Dummy_test"
+name = "Dummy_test2"
 
 
 # Define time series arguments
@@ -38,4 +38,4 @@ icg = InfluenceCascadeGenerator(cuttoff)
 pipeline = Pipeline(tsg, igg, icg)
 
 # Run the experiment
-run_experiment(dataset, agents, pipeline, save=true, experiment_name=name)
+run_experiment(dataset, "Before COP26", agents, pipeline, save=true, experiment_name=name)

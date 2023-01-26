@@ -203,3 +203,14 @@ for i, file in enumerate(filenames):
     df = pd.read_json(file, lines=True, convert_dates=False, dtype=object)
     df["foo"] = df.apply(effective_category_quick, axis=1)
     df['effective_category'] = df["foo"].apply(lambda x: 'tweet' if pd.isnull(x) else 'retweet')
+    
+    
+#%%
+import pandas as pd
+
+news = pd.read_csv('/Users/cyrilvallez/Desktop/Thesis/Data/NewsGuard-metadata-2022090100.csv')
+
+
+
+
+

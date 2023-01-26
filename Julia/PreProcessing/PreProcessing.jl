@@ -3,7 +3,7 @@ module PreProcessing
 using DataFrames, Dates, DataStructures
 
 export no_partition, sentiment, cop_26_dates, cop_27_dates, skripal_dates
-export trust_score, trust_popularity_score
+export trust_score, trust_popularity_score, mainstream_score
 export follower_count, all_users, retweet_count, IP_scores
 
 export PreProcessingAgents, preprocessing
