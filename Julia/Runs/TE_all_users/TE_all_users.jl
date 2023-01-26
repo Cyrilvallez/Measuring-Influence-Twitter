@@ -35,10 +35,10 @@ threshold = 0.04
 cuttoff = WithoutCuttoff
 
 tsg = TimeSeriesGenerator(Minute(time_resolution), standardize=standardize)
-ig = InfluenceGraphGenerator(method, Nsurro=Nsurro, threshold=threshold) 
+igg = InfluenceGraphGenerator(method, Nsurro=Nsurro, threshold=threshold) 
 icg = InfluenceCascadeGenerator(cuttoff)
 
-pipeline = Pipeline(tsg, ig, icg)
+pipeline = Pipeline(tsg, igg, icg)
 
 # Run the experiment
 for (dataset, agents, name) in ProgressBar(zip(datasets, all_agents, experiment_names))

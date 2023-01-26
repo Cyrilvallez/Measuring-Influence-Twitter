@@ -41,7 +41,7 @@ tsg = TimeSeriesGenerator(Minute(time_resolution), standardize=standardize)
 igg = InfluenceGraphGenerator(method, Nsurro=Nsurro, threshold=threshold, B=B, d=d, τ=τ)
 icg = InfluenceCascadeGenerator(cuttoff)
 
-pipeline = Pipeline(tsg, ig, icg)
+pipeline = Pipeline(tsg, igg, icg)
 
 # Run the experiment
 for (agents, name) in ProgressBar(zip(all_agents, experiment_names))
