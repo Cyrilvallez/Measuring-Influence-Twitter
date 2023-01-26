@@ -265,7 +265,7 @@ function log_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
 
     dic["Preprocessing"]["partition"] = string(agents.partition_function)
     dic["Preprocessing"]["action"] = string(agents.action_function)
-    if agents.actors_parameters == ""
+    if agents.actor_parameters == ""
         dic["Preprocessing"]["actor"] = string(agents.actor_function)
     else
         dic["Preprocessing"]["actor"] = agents.actor_parameters
