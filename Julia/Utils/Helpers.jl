@@ -29,6 +29,16 @@ Conveniently load a file containing lines of json objects into a DataFrame (or a
 function load_json(filename::String; to_df::Bool = true, skiprows::Int = 0)
 
     lines = readlines(filename)
+
+    # In case of an empty file return an empty Dict or DataFrame (otherwise it errors during later parsing)
+    if length(lines) == 1 && lines[1] == ""
+        if to_df
+            return DataFrame()
+        else
+            return [Dict()]
+        end
+    end
+
     dics = [JSON.parse(line, null=missing) for line in lines[(skiprows+1):end]]
 
     # Convert dates to datetime
