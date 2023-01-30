@@ -3,7 +3,7 @@ module Metrics
 using DataFrames, Graphs, SimpleWeightedGraphs, StatsBase
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
-using ..Helpers: make_simplifier, partitions_actions_actors
+using ..Helpers: make_simplifier, partitions_actions_actors, Dataset, COP26, COP27, Skripal, RandomDays, load_dataset
 using ..Sensors: InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
 using ..PreProcessing: follower_count, retweet_count, IP_scores, all_users
 
@@ -183,7 +183,9 @@ end
 
 
 
-function get_all_ranks(df::DataFrame, partition_function::Union{Function, Missing}; by_partition::Bool = true, min_tweets::Int = 3)
+function get_all_ranks(dataset::Type{<:Dataset}, partition_function::Union{Function, Missing}; by_partition::Bool = true, min_tweets::Int = 3)
+
+    df = load_dataset(dataset)
 
     if ismissing(partition_function) && by_partition 
         throw(ArgumentError("If you want to divide ranking by partition you must provide the partition function."))
@@ -225,24 +227,53 @@ function get_all_ranks(df::DataFrame, partition_function::Union{Function, Missin
     control.I_score = df3.I_score
     control.P_score = df3.P_score
 
-    useful = unique(control, :username)[:, ["username", "partition", "tweet_count", "follower_count", "retweet_count", "I_score", "P_score"]]
+    partitions = sort(unique(control.partition))
+    dfs = []
 
-    if by_partition
-        useful = transform(groupby(useful, "partition"), "follower_count" => (x-> ordinalrank(x, rev=true)) => "follower_rank")
-        useful = transform(groupby(useful, "partition"), "tweet_count" => (x-> ordinalrank(x, rev=true)) => "tweet_rank")
-        useful = transform(groupby(useful, "partition"), "retweet_count" => (x-> ordinalrank(x, rev=true)) => "retweet_rank")
-        useful = transform(groupby(useful, "partition"), "I_score" => (x-> ordinalrank(x, rev=true)) => "I_rank")
-    else
+    for partition in partitions
+        useful = control[control.partition .== partition, :]
+        useful = unique(useful, :username)[:, ["username", "partition", "tweet_count", "follower_count", "retweet_count", "I_score", "P_score"]]
+        useful.tweet_rank = ordinalrank(useful.tweet_count, rev=true)
         useful.follower_rank = ordinalrank(useful.follower_count, rev=true)
         useful.retweet_rank = ordinalrank(useful.retweet_count, rev=true)
-        useful.I_rank = ordinalrank(useful.I_score, rev=true)
-        useful.tweet_rank = ordinalrank(useful.tweet_count, rev=true)
+        useful."I score_rank" = ordinalrank(useful.I_score, rev=true)
+        sort!(useful, :username)
+        push!(dfs, useful)
     end
 
-    return useful
+    return dfs
 
 end
 
+
+
+
+function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real, edge_type::AbstractString)
+
+    partitions, actions, actors = partitions_actions_actors(df)
+
+    # Create simple graphs by removing weights not needed for the centrality
+    simplifier = make_simplifier(edge_type, cuttoff, actions)
+    simple_graphs = [SimpleDiGraph(simplifier.(graph)) for graph in influence_graphs]
+
+    indegree_centralities = [indegree(graph) for graph in simple_graphs]
+    outdegree_centralities = [outdegree(graph) for graph in simple_graphs]
+    betweenness_centralities = [betweenness_centrality(graph, normalize=true) for graph in simple_graphs]
+
+    dfs = []
+    for (i, partition) in enumerate(partitions)
+        usernames = actors[i]
+        dic = Dict("username" => usernames, "outdegree" => outdegree_centralities[i], "betweenness" => betweenness_centralities[i])
+        useful = DataFrame(dic)
+        useful.outdegree_rank = ordinalrank(useful.outdegree, rev=true)
+        useful.betweenness_rank = ordinalrank(useful.betweenness, rev=true)
+        sort!(useful, :username)
+        push!(dfs, useful)
+    end
+
+    return dfs
+
+end
 
 
 """

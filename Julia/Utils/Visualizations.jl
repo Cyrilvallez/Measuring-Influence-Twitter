@@ -219,6 +219,7 @@ function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool =
         plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
     end
     if save
+        mkpath(dirname(filename))
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
     return plt.gcf()
@@ -259,6 +260,7 @@ function plot_betweenness_centrality(influence_graphs::InfluenceGraphs, df::Data
     plt.xticks(ticks, labels=partitions)
     plt.grid()
     if save
+        mkpath(dirname(filename))
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
 
@@ -281,7 +283,7 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
     if split_by_partition
         actor_levels = mean_actors_per_level.(influence_cascades)
         if !isnothing(control)
-            push!(actor_levels, mean_actors_per_level(control))
+            push!(actor_levels, mean_actors_per_level.(control)[1])
         end
         max_level = maximum(length, actor_levels)
         # Pad with zeros so that they all have the same length
@@ -329,6 +331,7 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
         plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
     end
     if save
+        mkpath(dirname(filename))
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
     return plt.gcf()
@@ -367,6 +370,7 @@ function plot_actor_frequency(df::DataFrame; split_by_partition::Bool = true, lo
         plt.grid(true, which="minor", axis="y", alpha=0.4)
     end
     if save
+        mkpath(dirname(filename))
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
     return plt.gcf()
@@ -457,6 +461,7 @@ function plot_action_frequency(df::DataFrame; split_by_partition::Bool = true, w
     ax.set_ylim((lims[1], lims[2]*1.08))
 
     if save
+        mkpath(dirname(filename))
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
     return plt.gcf()
@@ -532,6 +537,7 @@ function plot_actor_wordcloud(df::DataFrame; by_::String = "follower_count", red
         generate!(wc, reposition=0.7)
     end
     if save
+        mkpath(dirname(filename))
         paint(wc, filename)
     else
         return wc
