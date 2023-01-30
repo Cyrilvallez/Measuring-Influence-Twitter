@@ -93,6 +93,17 @@ function load_dataset(::Type{T}; N_days::Int = 13) where T <: Dataset
         process_random_dataset!(data)
     end
 
+    # Reset the follower count of each users to the follower_count of the first appearance of this user
+    # We need this because there may be discrepancy of a few followers due to the fact that querying the Twitter API takes time
+    # and thus the follower count of one user at the beginning of the query may be slightly different than his count at the end
+    x = data.username
+    indices = unique(i -> x[i], 1:length(x))
+    # Get unique usernames and corresponding follower_count
+    users = x[indices]
+    followers = data.follower_count[indices]
+    dic = Dict(users .=> followers)
+    data = transform(data, "username" => ByRow(x -> dic[x]) => "follower_count")
+
     return data
 
 end
@@ -127,7 +138,7 @@ end
 """
 Return a function deciding how to select indices of an edge matrix corresponding to the edge we are interested in.
 """
-function make_simplifier(edge_type::String, cuttoff::Real, actions::Vector{String})
+function make_simplifier(edge_type::String, cuttoff::Real, actions::Vector{<:AbstractString})
 
     actions = sort(actions)
 

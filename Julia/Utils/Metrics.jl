@@ -1,12 +1,13 @@
 module Metrics
 
-using DataFrames, Graphs, SimpleWeightedGraphs
+using DataFrames, Graphs, SimpleWeightedGraphs, StatsBase
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Helpers: make_simplifier, partitions_actions_actors
 using ..Sensors: InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
+using ..PreProcessing: follower_count, retweet_count, IP_scores, all_users
 
-export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities
+export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities, get_all_ranks
 
 
 function edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real) 
@@ -61,6 +62,14 @@ end
 function edge_types(graph_list::Vector{InfluenceGraphs}, df::DataFrame, cuttoff::Real)
 
     data = [edge_types(graph_list[i], df, cuttoff) for i = 1:length(graph_list)]
+    return combine_dict(data)
+
+end
+
+
+function edge_types(graph_list::Vector{InfluenceGraphs}, dfs::Vector{DataFrame}, cuttoffs::Vector{<:Real}) 
+
+    data = [edge_types(graph_list[i], dfs[i], cuttoffs[i]) for i = 1:length(graph_list)]
     return combine_dict(data)
 
 end
@@ -170,6 +179,68 @@ function outdegree_centralities(influence_graphs::InfluenceGraphs, df::DataFrame
     end
 
     return outdegree_centrality, actors
+end
+
+
+
+function get_all_ranks(df::DataFrame, partition_function::Union{Function, Missing}; by_partition::Bool = true, min_tweets::Int = 3)
+
+    if ismissing(partition_function) && by_partition 
+        throw(ArgumentError("If you want to divide ranking by partition you must provide the partition function."))
+    end
+
+    if !ismissing(partition_function)
+        df = partition_function(df)
+    end
+
+    # Extract the functions to apply
+    followers, _ = follower_count(by_partition=by_partition, min_tweets=min_tweets, actor_number = "all")
+    RT, _ = retweet_count(by_partition=by_partition, min_tweets=min_tweets, actor_number = "all")
+    IP, _ = IP_scores(by_partition=by_partition, min_tweets=min_tweets, actor_number = "all")
+    All, _ = all_users(by_partition=by_partition, min_tweets=min_tweets)
+
+    # Apply each function to obtain metrics
+    df1 = followers(df)
+    df2 = RT(df)
+    df3 = IP(df)
+    control = All(df)
+
+    # Remove retweet_from column
+    df1 = df1[!, Not("retweet_from")]
+    df2 = df2[!, Not("retweet_from")]
+    df3 = df3[!, Not("retweet_from")]
+    control = control[!, Not("retweet_from")]
+
+    # Sort each result similarly
+    sort!(df1, :created_at)
+    sort!(df2, :created_at)
+    sort!(df3, :created_at)
+    sort!(control, :created_at)
+
+    if !(df1 == control) || !(df2[!, Not("retweet_count")] == control) || !(df3[!, Not(["I_score", "P_score"])] == control[!, Not("tweet_count")])
+        throw(ArgumentError("For some reason the different dataframes for different quantities are not the same."))
+    end
+
+    control.retweet_count = df2.retweet_count
+    control.I_score = df3.I_score
+    control.P_score = df3.P_score
+
+    useful = unique(control, :username)[:, ["username", "partition", "tweet_count", "follower_count", "retweet_count", "I_score", "P_score"]]
+
+    if by_partition
+        useful = transform(groupby(useful, "partition"), "follower_count" => (x-> ordinalrank(x, rev=true)) => "follower_rank")
+        useful = transform(groupby(useful, "partition"), "tweet_count" => (x-> ordinalrank(x, rev=true)) => "tweet_rank")
+        useful = transform(groupby(useful, "partition"), "retweet_count" => (x-> ordinalrank(x, rev=true)) => "retweet_rank")
+        useful = transform(groupby(useful, "partition"), "I_score" => (x-> ordinalrank(x, rev=true)) => "I_rank")
+    else
+        useful.follower_rank = ordinalrank(useful.follower_count, rev=true)
+        useful.retweet_rank = ordinalrank(useful.retweet_count, rev=true)
+        useful.I_rank = ordinalrank(useful.I_score, rev=true)
+        useful.tweet_rank = ordinalrank(useful.tweet_count, rev=true)
+    end
+
+    return useful
+
 end
 
 

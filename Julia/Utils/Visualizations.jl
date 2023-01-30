@@ -127,7 +127,7 @@ function plot_cascade_sankey(influence_cascade::InfluenceCascade, df::DataFrame)
           hovertemplate = "source : %{source.label} on level %{source.customdata} \
           <br />target : %{target.label} on level %{target.customdata}"
         ))
-    layout = Layout(title_text="Influence cascade", font_size=10)
+    layout = Layout(font_size=10)
 
     return fig, layout
         
@@ -207,7 +207,11 @@ function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool =
     plt.figure()
     sns.barplot(data, x="edge_type", y=y, hue="partition", saturation=1, zorder=2; kwargs...)
     plt.xlabel("Edge type")
-    plt.ylabel(uppercasefirst(y) * " of total number of edges")
+    if y == "count_normalized"
+        plt.ylabel("Normalized count of edges")
+    else
+        plt.ylabel(uppercasefirst(y) * " of total number of edges")
+    end
     plt.legend()
     plt.grid(true, which="major", axis="y", zorder=0)
     if log
@@ -263,22 +267,32 @@ end
 
 
 
-function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFrame; split_by_partition::Bool = true, width::Real = 0.25,
+function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFrame; control::Union{InfluenceCascades, Nothing} = nothing, split_by_partition::Bool = true, width::Real = 0.25,
     inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1])
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
     end
 
+    if !isnothing(control) && reorder == [2, 3, 1]
+        reorder = [2, 3, 1, 4]
+    end
+
     if split_by_partition
         actor_levels = mean_actors_per_level.(influence_cascades)
+        if !isnothing(control)
+            push!(actor_levels, mean_actors_per_level(control))
+        end
         max_level = maximum(length, actor_levels)
         # Pad with zeros so that they all have the same length
         actor_levels = [vec([x... [0. for i = (length(x)+1):max_level]...]) for x in actor_levels]
         labels = sort(unique(df.partition))
+        if !isnothing(control)
+            push!(labels, "Control")
+        end
 
         # In this case remove default value
-        if length(labels) != 3 && reorder == [2,3,1]
+        if length(labels) != length(reorder)
             reorder = nothing
         end
 
