@@ -1,23 +1,27 @@
 module Metrics
 
-using DataFrames, Graphs, SimpleWeightedGraphs, StatsBase
+using DataFrames, Graphs, SimpleWeightedGraphs, StatsBase, DataStructures
 
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Helpers: make_simplifier, partitions_actions_actors, Dataset, COP26, COP27, Skripal, RandomDays, load_dataset
 using ..Sensors: InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
 using ..PreProcessing: follower_count, retweet_count, IP_scores, all_users
 
-export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities, get_all_ranks
+export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities
+export get_general_ranks, get_centrality_ranks, correlation_matrices
 
 
 function edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real) 
 
    partitions, actions, _ = partitions_actions_actors(df)
 
-    # Small hack to rename the case when there are no partitions
+    # Small hack to rename the partitions for plotting
     if partitions == ["Full dataset"]
         partitions = ["Control"]
+    elseif length(partitions) == 3
+        partitions = [split(partition, " ")[1] for partition in partitions]
     end
+
 
     N_actions = length(actions)
     N_partitions = length(partitions)
@@ -183,7 +187,7 @@ end
 
 
 
-function get_all_ranks(dataset::Type{<:Dataset}, partition_function::Union{Function, Missing}; by_partition::Bool = true, min_tweets::Int = 3)
+function get_general_ranks(dataset::Type{<:Dataset}, partition_function::Union{Function, Missing}; by_partition::Bool = true, min_tweets::Int = 3)
 
     df = load_dataset(dataset)
 
@@ -247,7 +251,6 @@ end
 
 
 
-
 function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real, edge_type::AbstractString)
 
     partitions, actions, actors = partitions_actions_actors(df)
@@ -263,7 +266,7 @@ function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, 
     dfs = []
     for (i, partition) in enumerate(partitions)
         usernames = actors[i]
-        dic = Dict("username" => usernames, "outdegree" => outdegree_centralities[i], "betweenness" => betweenness_centralities[i])
+        dic = Dict("partition" => repeat([partition], length(usernames)), "username" => usernames, "outdegree" => outdegree_centralities[i], "betweenness" => betweenness_centralities[i])
         useful = DataFrame(dic)
         useful.outdegree_rank = ordinalrank(useful.outdegree, rev=true)
         useful.betweenness_rank = ordinalrank(useful.betweenness, rev=true)
@@ -274,6 +277,93 @@ function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, 
     return dfs
 
 end
+
+
+
+function find_max_ranks(general_ranks::DataFrame, centrality_ranks::DataFrame, N::Int = 10)
+
+    if !(length(unique(general_ranks.partition)) == 1) || !(length(unique(centrality_ranks.partition)) == 1) || general_ranks.partition[1] != centrality_ranks.partition[1]
+        throw(ArgumentError("Error in the partitions"))
+    end
+
+    if !(general_ranks.username == centrality_ranks.username)
+        throw(ArgumentError("Error in the usernames"))
+    end
+
+    cols = [name for name in names(general_ranks) if occursin("rank", name)]
+    cols2 = [name for name in names(centrality_ranks) if occursin("rank", name)]
+
+    dic = OrderedDict()
+
+    for col in cols
+        sorting = sortperm(general_ranks[!, col])
+        users = general_ranks.username[sorting][1:N]
+        dic[col] = users
+    end
+    for col in cols2
+        sorting = sortperm(centrality_ranks[!, col])
+        users = centrality_ranks.username[sorting][1:N]
+        dic[col] = users
+    end
+
+    println("The partition is $(general_ranks.partition[1])")
+    return DataFrame(dic)
+
+end
+
+
+
+function correlation_matrices(general_ranks, centrality_ranks, N = 50)
+
+    if length(general_ranks) != length(centrality_ranks)
+        throw(ArgumentError("Number of partition mismatch."))
+    end
+
+    output = []
+    labels = []
+
+    for (r1, r2) in zip(general_ranks, centrality_ranks)
+        partition = r1.partition[1]
+        if r1.username != r2.username
+            throw(ArgumentError("Both do not contain the same usernames."))
+        end
+        tot = innerjoin(r1, r2, on=:username, makeunique=true)
+
+        cols = [name for name in names(tot) if occursin("rank", name)]
+        labels_ = [split(col, '_')[1] for col in cols]
+        corr_matrix = zeros(length(cols), length(cols))
+
+        for (i, col1) in enumerate(cols)
+            sorting = sortperm(tot[!, col1])
+            users1 = tot.username[sorting][1:N]
+            # Should be 1:N
+            rank1 = tot[!, col1][sorting][1:N]
+            if rank1 != collect(1:N)
+                throw(ArgumentError("Error in the rank values."))
+            end
+            
+            for (j, col2) in enumerate(cols)
+
+                # indices = [findfirst(user .== tot.username) for user in users1]
+                # users2 = tot.username[indices]
+                # rank2 = tot[!, col2][indices]
+                # corr_matrix[i,j] = corspearman(rank1, rank2)
+                sorting = sortperm(tot[!, col2])
+                users2 = tot.username[sorting][1:N]
+                corr_matrix[i,j] = length(intersect(users1, users2)) / length(users1)
+
+            end
+        end
+
+        push!(output, corr_matrix)
+        push!(labels, labels_)
+
+    end
+
+    return output, labels
+
+end
+
 
 
 """

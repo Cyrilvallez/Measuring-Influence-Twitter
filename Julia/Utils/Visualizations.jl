@@ -10,7 +10,7 @@ import Seaborn as sns
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors: SingleInfluenceGraph, InfluenceGraphs, InfluenceCascade, CascadeCollection, InfluenceCascades
 using ..Helpers: make_simplifier, partitions_actions_actors
-using ..Metrics: edge_types
+using ..Metrics: edge_types, correlation_matrices
 
 export plot_cascade_sankey,
        plot_graph,
@@ -20,7 +20,8 @@ export plot_cascade_sankey,
        plot_actors_per_level,
        plot_actor_frequency,
        plot_action_frequency,
-       plot_actor_wordcloud
+       plot_actor_wordcloud,
+       plot_correlation_matrices
        
 
 # Some default parameters for better plots
@@ -30,7 +31,7 @@ begin
     rcParams["font.serif"] = ["Computer Modern Roman"]
     rcParams["figure.dpi"] = 100
     rcParams["text.usetex"] = true
-    rcParams["legend.fontsize"] = 16
+    rcParams["legend.fontsize"] = 14
     rcParams["lines.linewidth"] = 2
     rcParams["lines.markersize"] = 6
     rcParams["axes.titlesize"] = 18
@@ -191,7 +192,7 @@ end
 """
 Plot the different edge types count or proportion, for different partitions and/or datasets.
 """
-function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool = true, save::Bool = false, filename = nothing, kwargs...)
+function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool = true, save::Bool = false, filename = nothing, loc="best", kwargs...)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -212,7 +213,7 @@ function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool =
     else
         plt.ylabel(uppercasefirst(y) * " of total number of edges")
     end
-    plt.legend()
+    plt.legend(loc=loc)
     plt.grid(true, which="major", axis="y", zorder=0)
     if log
         plt.yscale("log")
@@ -270,7 +271,7 @@ end
 
 
 function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFrame; control::Union{InfluenceCascades, Nothing} = nothing, split_by_partition::Bool = true, width::Real = 0.25,
-    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1])
+    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1], loc="best")
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -289,6 +290,7 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
         # Pad with zeros so that they all have the same length
         actor_levels = [vec([x... [0. for i = (length(x)+1):max_level]...]) for x in actor_levels]
         labels = sort(unique(df.partition))
+        labels = [split(label, " ")[1] for label in labels]
         if !isnothing(control)
             push!(labels, "Control")
         end
@@ -322,7 +324,7 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
     plt.xlabel("Cascade level")
     plt.ylabel("Mean number of actors")
     if split_by_partition
-        plt.legend()
+        plt.legend(loc=loc)
     end
     plt.grid(true, which="major", axis="y", zorder=0)
     plt.xticks(tick_position, levels)
@@ -335,6 +337,44 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
         plt.savefig(filename, bbox_inches="tight", dpi=400)
     end
     return plt.gcf()
+
+end
+
+
+
+function plot_correlation_matrices(general_ranks, centrality_ranks, N = 50; save::Bool = false, foldername = nothing)
+
+    if save && isnothing(foldername)
+        throw(ArgumentError("You must provide a foldername if you want to save the figure."))
+    end
+
+    if basename(foldername) != "" && contains(basename(foldername), ".")
+        throw(ArgumentError("You must provide a foldername, not a filename."))
+    end
+
+    if foldername[end] != '/'
+        foldername += '/'
+    end
+
+   output, labels = correlation_matrices(general_ranks, centrality_ranks, N)
+
+    for i in 1:length(output)
+        partition = general_ranks[i].partition[1]
+        partition = replace(partition, " " => "_")
+        plt.figure()
+        sns.heatmap(output[i], annot=true, cmap="rocket")
+        xloc, xlabels = plt.xticks()
+        plt.xticks(xloc, labels[i], rotation="vertical")
+        yloc, ylabels = plt.yticks()
+        plt.yticks(yloc, labels[i], rotation="horizontal")
+        if save
+            mkpath(dirname(foldername))
+            plt.savefig(foldername * "correlation_heatmap_$partition.pdf" , bbox_inches="tight")
+        end
+        plt.gcf()
+    end
+
+    return output, labels
 
 end
 
