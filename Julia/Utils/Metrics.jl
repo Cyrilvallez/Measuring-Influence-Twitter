@@ -427,7 +427,7 @@ function correlation_matrices(general_ranks, centrality_ranks, N = 50)
             for (j, col2) in enumerate(cols)
 
                 users1 = ranks[!, col1]
-                users1 = ranks[!, col2]
+                users2 = ranks[!, col2]
 
                 if any(users1 .== "-") || any(users2 .== "-")
                     @warn "Partition $partition : $col1 or $col2 has some missing values"
