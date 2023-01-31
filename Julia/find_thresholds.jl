@@ -81,7 +81,7 @@ if !no_TE
 
     thresholds = 0:0.01:0.06
     limits = ["x->-1000", "x->quantile(x, 0.5)", "x->quantile(x, 0.75)", "x->quantile(x, 0.9)", "x->quantile(x, 1)", "x->2*quantile(x, 1)", "x->4*quantile(x, 1)"]
-    labels = ["None", "Q(0.5)", "Q(0.75)", "Q(0.9)", L"\max", L"2\cdot \max", L"4\cdot \max"]
+    # labels = ["None", "Q(0.5)", "Q(0.75)", "Q(0.9)", L"\max", L"2\cdot \max", L"4\cdot \max"]
 
     result = Matrix{Matrix{Float64}}(undef, length(limits), length(thresholds))
     for i in eachindex(result)
@@ -157,7 +157,7 @@ if !no_JDD
 
     thresholds2 = [1, 1e-1, 5e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4]
     limits2 = ["x->+1000000", "x->quantile(x, 0.5)", "x->quantile(x, 0.25)", "x->quantile(x, 0.1)", "x->quantile(x, 0)", "x->quantile(x, 0)/2", "x->quantile(x, 0)/4", "x->quantile(x, 0)/6"]
-    labels2 = ["None", "Q(0.5)", "Q(0.25)", "Q(0.1)", "min", "min/2", "min/4", "min/6"]
+    # labels2 = ["None", "Q(0.5)", "Q(0.25)", "Q(0.1)", "min", "min/2", "min/4", "min/6"]
 
     result2 = Matrix{Matrix{Float64}}(undef, length(limits2), length(thresholds2))
     for i in eachindex(result2)
