@@ -8,7 +8,7 @@ using ..Sensors: InfluenceGraphs, InfluenceCascade, CascadeCollection, Influence
 using ..PreProcessing: follower_count, retweet_count, IP_scores, all_users
 
 export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities
-export get_general_ranks, get_centrality_ranks, correlation_matrices
+export get_general_ranks, get_centrality_ranks, correlation_matrices, find_max_ranks, get_centrality_ranks_all_edges
 
 
 function edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real) 
@@ -259,7 +259,6 @@ function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, 
     simplifier = make_simplifier(edge_type, cuttoff, actions)
     simple_graphs = [SimpleDiGraph(simplifier.(graph)) for graph in influence_graphs]
 
-    indegree_centralities = [indegree(graph) for graph in simple_graphs]
     outdegree_centralities = [outdegree(graph) for graph in simple_graphs]
     betweenness_centralities = [betweenness_centrality(graph, normalize=true) for graph in simple_graphs]
 
@@ -307,6 +306,28 @@ function find_max_ranks(general_ranks::DataFrame, centrality_ranks::DataFrame, N
     end
 
     println("The partition is $(general_ranks.partition[1])")
+    return DataFrame(dic)
+
+end
+
+
+function find_max_ranks(all_centrality_ranks::DataFrame, N::Int = 10)
+
+    if !(length(unique(all_centrality_ranks.partition)) == 1) 
+        throw(ArgumentError("Error in the partitions"))
+    end
+
+    cols = [name for name in names(all_centrality_ranks) if occursin("rank", name)]
+
+    dic = OrderedDict()
+
+    for col in cols
+        sorting = sortperm(all_centrality_ranks[!, col])
+        users = all_centrality_ranks.username[sorting][1:N]
+        dic[col] = users
+    end
+
+    println("The partition is $(all_centrality_ranks.partition[1])")
     return DataFrame(dic)
 
 end
@@ -361,6 +382,51 @@ function correlation_matrices(general_ranks, centrality_ranks, N = 50)
     end
 
     return output, labels
+
+end
+
+
+
+function get_centrality_ranks_all_edges(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real)
+
+    partitions, actions, actors = partitions_actions_actors(df)
+
+    edge_types = [string(a1, " to ", a2) for a1 in actions for a2 in actions]
+
+    dics = [Dict(), Dict(), Dict()]
+
+    for (i, dic) in enumerate(dics)
+        dic["username"] = actors[i]
+        dic["partition"] = repeat([partitions[i]], length(actors[i]))
+    end
+
+    for edge_type in edge_types
+
+        label = replace(edge_type, " " => "_")
+
+        # Create simple graphs by removing weights not needed for the centrality
+        simplifier = make_simplifier(edge_type, cuttoff, actions)
+        simple_graphs = [SimpleDiGraph(simplifier.(graph)) for graph in influence_graphs]
+
+        outdegree_centralities = [outdegree(graph) for graph in simple_graphs]
+        betweenness_centralities = [betweenness_centrality(graph, normalize=true) for graph in simple_graphs]
+
+        for (i, partition) in enumerate(partitions)
+            dics[i]["outdegree_$label"] = outdegree_centralities[i]
+            dics[i]["betweenness_$label"] = betweenness_centralities[i]
+
+            dics[i]["outdegree_rank_$label"] = ordinalrank(outdegree_centralities[i], rev=true)
+            dics[i]["betweenness_rank_$label"] = ordinalrank(betweenness_centralities[i], rev=true)
+        end
+
+    end
+
+    dfs = [DataFrame(dic) for dic in dics]
+    for df in dfs
+        sort!(df, :username)
+    end
+
+    return dfs
 
 end
 
