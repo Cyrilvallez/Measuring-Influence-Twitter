@@ -8,7 +8,7 @@ import Random
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors, ..PreProcessing
 
-export load_dataset, make_simplifier, partitions_actions_actors, save_data, load_data, log_experiment
+export load_dataset, make_simplifier, partitions_actions_actors, save_data, load_data, log_experiment, latexify, latexify2
 export Dataset, COP26, COP27, Skripal, RandomDays
 
 
@@ -342,5 +342,122 @@ function log_experiment(dataset::Type{<:Dataset}, agents::PreProcessingAgents, p
 end
 
 
+
+"""
+Create a latex table from dataframe of strings. Use print(latexify(df)) in order to get the correct output (backslashes escaped correctly).
+"""
+function latexify(df::DataFrame)
+
+    N = length(names(df))
+    M = length(df[:, 1])
+    cols = string(repeat(["c|"], N)...)
+
+    if N == 8
+        col_names = "betweenness T-T & betweenness T-U & betweenness U-T & betweenness U-U & outdegree T-T & outdegree T-U & outdegree U-T & outdegree U-U \\\\ \\hline"
+    elseif N == 6
+        col_names = "tweet count & follower count & retweet count & I score & outdegree & betweenness \\\\ \\hline"
+    else
+        throw(ArgumentError("Df not supported"))
+    end
+
+    lines = []
+    for i = 1:M
+        line = ""
+        for (j, col) in enumerate(names(df))
+            if occursin("_", df[i, col])
+                element = replace(df[i, col], "_" => "\\_")
+            else
+                element = df[i, col]
+            end
+            line *= element
+            if j < N
+                line *= " & "
+            end
+        end
+        # Double escape
+        line *= " \\\\"
+        push!(lines, line)
+    end
+
+    # All \ need to be escaped
+    out = """\\begin{table}[]
+    \\centering
+    \\resizebox{\\textwidth}{!}{%
+    \\begin{tabular}{|$cols}
+    \\hline
+    $col_names
+    """
+
+    for (i, line) in enumerate(lines)
+        if i < M
+            out *= "$line\n"
+        else
+            out *= "$line \\hline\n"
+        end
+    end
+
+    out *= """\\end{tabular}%
+    }
+    \\caption{Top 10 most influent users using different influence metrics.}
+    \\label{tab:}
+    \\end{table}"""
+
+    return out
+
+end
+
+
+function latexify2(df::DataFrame)
+
+    if !(occursin("Before", df.partition[1])) || !(occursin("During", df.partition[2])) || !(occursin("After", df.partition[3]))
+        throw(ArgumentError("Format error."))
+    end
+
+    partitions =["Before", "During", "After"]
+    df = df[:, Not("partition")]
+
+    N = length(names(df))
+    M = length(df[:, 1])
+
+    col_names = " & \\multicolumn{1}{c|}{betweenness T-T} & \\multicolumn{1}{c|}{betweenness T-U} & \\multicolumn{1}{c|}{betweenness U-T} & \\multicolumn{1}{c|}{betweenness U-U} & " * 
+        "\\multicolumn{1}{c|}{outdegree T-T} & \\multicolumn{1}{c|}{outdegree T-U} & \\multicolumn{1}{c|}{outdegree U-T} & \\multicolumn{1}{c|}{outdegree U-U} \\\\ \\hline"
+
+    out = """\\begin{table}[]
+    \\centering
+    \\resizebox{\\textwidth}{!}{%
+    \\begin{tabular}{c|c|c|c|c|c|c|c|c|}
+    \\cline{2-9}
+    $col_names
+    """
+
+    lines = []
+    for i = 1:M
+        line = "\\multicolumn{1}{|l|}{$(partitions[i])} & "
+        for (j, col) in enumerate(names(df))
+            element = df[i, col]
+            line *= "\$" * string(element) * "\$"
+            if j < N
+                line *= " & "
+            end
+        end
+        # Double escape
+        line *= " \\\\ \\hline"
+        push!(lines, line)
+    end
+
+    for (i, line) in enumerate(lines)
+        out *= "$line\n"
+    end
+
+    out *= """\\end{tabular}%
+    }
+    \\caption{}
+    \\label{tab:my-table}
+    \\end{table}
+    """
+
+    return out
+
+end
 
 end # module

@@ -9,6 +9,7 @@ using ..PreProcessing: follower_count, retweet_count, IP_scores, all_users
 
 export edge_types, graph_by_majority_vote, betweenness_centralities, indegree_centralities, outdegree_centralities
 export get_general_ranks, get_centrality_ranks, correlation_matrices, find_max_ranks, get_centrality_ranks_all_edges
+export correlation_JDD_TE
 
 
 function edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real) 
@@ -279,114 +280,6 @@ end
 
 
 
-function find_max_ranks(general_ranks::DataFrame, centrality_ranks::DataFrame, N::Int = 10)
-
-    if !(length(unique(general_ranks.partition)) == 1) || !(length(unique(centrality_ranks.partition)) == 1) || general_ranks.partition[1] != centrality_ranks.partition[1]
-        throw(ArgumentError("Error in the partitions"))
-    end
-
-    if !(general_ranks.username == centrality_ranks.username)
-        throw(ArgumentError("Error in the usernames"))
-    end
-
-    cols = [name for name in names(general_ranks) if occursin("rank", name)]
-    cols2 = [name for name in names(centrality_ranks) if occursin("rank", name)]
-
-    dic = OrderedDict()
-
-    for col in cols
-        sorting = sortperm(general_ranks[!, col])
-        users = general_ranks.username[sorting][1:N]
-        dic[col] = users
-    end
-    for col in cols2
-        sorting = sortperm(centrality_ranks[!, col])
-        users = centrality_ranks.username[sorting][1:N]
-        dic[col] = users
-    end
-
-    println("The partition is $(general_ranks.partition[1])")
-    return DataFrame(dic)
-
-end
-
-
-function find_max_ranks(all_centrality_ranks::DataFrame, N::Int = 10)
-
-    if !(length(unique(all_centrality_ranks.partition)) == 1) 
-        throw(ArgumentError("Error in the partitions"))
-    end
-
-    cols = [name for name in names(all_centrality_ranks) if occursin("rank", name)]
-
-    dic = OrderedDict()
-
-    for col in cols
-        sorting = sortperm(all_centrality_ranks[!, col])
-        users = all_centrality_ranks.username[sorting][1:N]
-        dic[col] = users
-    end
-
-    println("The partition is $(all_centrality_ranks.partition[1])")
-    return DataFrame(dic)
-
-end
-
-
-
-function correlation_matrices(general_ranks, centrality_ranks, N = 50)
-
-    if length(general_ranks) != length(centrality_ranks)
-        throw(ArgumentError("Number of partition mismatch."))
-    end
-
-    output = []
-    labels = []
-
-    for (r1, r2) in zip(general_ranks, centrality_ranks)
-        partition = r1.partition[1]
-        if r1.username != r2.username
-            throw(ArgumentError("Both do not contain the same usernames."))
-        end
-        tot = innerjoin(r1, r2, on=:username, makeunique=true)
-
-        cols = [name for name in names(tot) if occursin("rank", name)]
-        labels_ = [split(col, '_')[1] for col in cols]
-        corr_matrix = zeros(length(cols), length(cols))
-
-        for (i, col1) in enumerate(cols)
-            sorting = sortperm(tot[!, col1])
-            users1 = tot.username[sorting][1:N]
-            # Should be 1:N
-            rank1 = tot[!, col1][sorting][1:N]
-            if rank1 != collect(1:N)
-                throw(ArgumentError("Error in the rank values."))
-            end
-            
-            for (j, col2) in enumerate(cols)
-
-                # indices = [findfirst(user .== tot.username) for user in users1]
-                # users2 = tot.username[indices]
-                # rank2 = tot[!, col2][indices]
-                # corr_matrix[i,j] = corspearman(rank1, rank2)
-                sorting = sortperm(tot[!, col2])
-                users2 = tot.username[sorting][1:N]
-                corr_matrix[i,j] = length(intersect(users1, users2)) / length(users1)
-
-            end
-        end
-
-        push!(output, corr_matrix)
-        push!(labels, labels_)
-
-    end
-
-    return output, labels
-
-end
-
-
-
 function get_centrality_ranks_all_edges(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real)
 
     partitions, actions, actors = partitions_actions_actors(df)
@@ -428,6 +321,186 @@ function get_centrality_ranks_all_edges(influence_graphs::InfluenceGraphs, df::D
 
     return dfs
 
+end
+
+
+
+function find_max_ranks(general_ranks::DataFrame, centrality_ranks::DataFrame, N::Int = 10)
+
+    if !(length(unique(general_ranks.partition)) == 1) || !(length(unique(centrality_ranks.partition)) == 1) || general_ranks.partition[1] != centrality_ranks.partition[1]
+        throw(ArgumentError("Error in the partitions"))
+    end
+
+    if !(general_ranks.username == centrality_ranks.username)
+        throw(ArgumentError("Error in the usernames"))
+    end
+
+    cols = [name for name in names(general_ranks) if occursin("rank", name)]
+    cols2 = [name for name in names(centrality_ranks) if occursin("rank", name)]
+
+    dic = OrderedDict()
+
+    for col in cols
+        sorting = sortperm(general_ranks[!, col])
+        users = general_ranks.username[sorting][1:N]
+
+        # Get corresponding value to put missing (-) in case of a 0
+        if col == "I score_rank"
+            corresponding_col = "I_score"
+        else
+            corresponding_col = replace(col, "_rank" => "_count")
+        end
+        vals = general_ranks[!, corresponding_col][sorting][1:N]
+        users[vals .== 0] .= "-"
+
+        dic[col] = users
+    end
+    for col in cols2
+        sorting = sortperm(centrality_ranks[!, col])
+        users = centrality_ranks.username[sorting][1:N]
+
+        # Get corresponding value to put missing (-) in case of a 0
+        corresponding_col = replace(col, "_rank" => "")
+        vals = centrality_ranks[!, corresponding_col][sorting][1:N]
+        users[vals .== 0.] .= "-"
+
+        dic[col] = users
+    end
+
+    println("The partition is $(general_ranks.partition[1])")
+    return DataFrame(dic)
+
+end
+
+
+function find_max_ranks(all_centrality_ranks::DataFrame, N::Int = 10)
+
+    if !(length(unique(all_centrality_ranks.partition)) == 1) 
+        throw(ArgumentError("Error in the partitions"))
+    end
+
+    cols = [name for name in names(all_centrality_ranks) if occursin("rank", name)]
+
+    dic = OrderedDict()
+
+    for col in cols
+        sorting = sortperm(all_centrality_ranks[!, col])
+        users = all_centrality_ranks.username[sorting][1:N]
+
+        # Get corresponding value to put missing (-) in case of a 0
+        corresponding_col = replace(col, "_rank" => "")
+        vals = all_centrality_ranks[!, corresponding_col][sorting][1:N]
+        users[vals .== 0.] .= "-"
+
+        dic[col] = users
+    end
+
+    println("The partition is $(all_centrality_ranks.partition[1])")
+    return DataFrame(dic)
+
+end
+
+
+
+function correlation_matrices(general_ranks, centrality_ranks, N = 50)
+
+    if length(general_ranks) != length(centrality_ranks)
+        throw(ArgumentError("Number of partition mismatch."))
+    end
+
+    output = []
+    labels = []
+
+    for (r1, r2) in zip(general_ranks, centrality_ranks)
+        partition = r1.partition[1]
+        if r1.username != r2.username
+            throw(ArgumentError("Both do not contain the same usernames."))
+        end
+
+        ranks = find_max_ranks(r1, r2, N)
+        cols = [name for name in names(ranks) if occursin("rank", name)]
+        labels_ = [split(col, '_')[1] for col in cols]
+        corr_matrix = zeros(length(cols), length(cols))
+
+        for (i, col1) in enumerate(cols)
+            
+            for (j, col2) in enumerate(cols)
+
+                users1 = ranks[!, col1]
+                users1 = ranks[!, col2]
+
+                if any(users1 .== "-") || any(users2 .== "-")
+                    @warn "Partition $partition : $col1 or $col2 has some missing values"
+                end
+                # corr_matrix[i,j] = corspearman(users1, users2)
+                corr_matrix[i,j] = length(intersect(users1, users2)) / length(users1)
+
+            end
+        end
+
+        push!(output, corr_matrix)
+        push!(labels, labels_)
+
+    end
+
+    return output, labels
+
+end
+
+
+
+function correlation_JDD_TE(centrality_ranks_JDD, centrality_ranks_TE, N = 50)
+
+    if length(centrality_ranks_JDD) != length(centrality_ranks_TE)
+        throw(ArgumentError("Number of partition mismatch."))
+    end
+
+    dic = Dict([name => [] for name in names(centrality_ranks_JDD[1]) if occursin("rank", name)]...)
+    dic["partition"] = []
+
+    for (r1, r2) in zip(centrality_ranks_JDD, centrality_ranks_TE)
+
+        partition = r1.partition[1]
+
+        if names(r1) != names(r2)
+            throw(ArgumentError("Dataframes do not have the same columns."))
+        end
+
+        if r1.username != r2.username
+            throw(ArgumentError("Both do not contain the same usernames."))
+        end
+
+        ranks1 = find_max_ranks(r1, N)
+        ranks2 = find_max_ranks(r2, N)
+
+        cols = [name for name in names(ranks1) if occursin("rank", name)]
+
+        push!(dic["partition"], partition)
+
+        for (i, col) in enumerate(cols)
+            
+            users1 = ranks1[!, col]
+            users2 = ranks2[!, col]
+
+            if any(users1 .== "-") || any(users2 .== "-")
+                corr = "-"
+            else
+                corr = length(intersect(users1, users2)) / length(users1)
+            end
+
+            push!(dic[col], corr)
+        
+        end
+
+    end
+    
+    df = DataFrame(dic)
+    # sort rows by partition temporality
+    df[[1,2,3], :] = df[[2,3,1], :]
+    # Put partition as first column
+    df = select(df, "partition", :)
+
+    return df
 end
 
 

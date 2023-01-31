@@ -1,8 +1,8 @@
 using ArgParse, StatsBase
 import Random
-import PyPlot as plt
-using PyPlot: @L_str
-import Seaborn as sns
+# import PyPlot as plt
+# using PyPlot: @L_str
+# import Seaborn as sns
 
 include("Engine/Engine.jl")
 using .Engine
@@ -67,6 +67,7 @@ N_redo_surro = args["N_seeds"]
 no_TE = args["no_TE"]
 no_JDD = args["no_JDD"]
 path = "../Results/Find_thresholds/" * args["filename"]
+mkpath(dirname(path))
 
 # Random seeds
 seeds_all = sample(1:10000, N_redo_all, replace=false)
