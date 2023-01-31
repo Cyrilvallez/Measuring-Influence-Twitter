@@ -38,6 +38,25 @@ function parse_commandline()
 end
 
 
+function draw_series(N, M = 150, min_ = 3, weights = nothing)
+    if isnothing(weights)
+        weights = AnalyticWeights([0.965, 0.03, 0.003, 0.001, 0.001])
+    end
+
+    sample_ = [sample(0:4, weights, M) for i = 1:N]
+    for i = 1:N
+        if sum(sample_[i]) < min_
+            while sum(sample_[i]) < min_
+                sample_[i] = sample(0:4, weights, M)
+            end
+        end
+    end
+
+    return sample_
+
+end
+
+
 args = parse_commandline()
 
 Random.seed!(123)
@@ -72,15 +91,16 @@ if !no_TE
     for (k, seed_all) in ProgressBar(enumerate(seeds_all), "All TE", leave=true)
 
         Random.seed!(seed_all)
-        X = [sample([0,1], AnalyticWeights([0.9, 0.1]), 200) for i = 1:N]
-        Y = [sample([0,1], AnalyticWeights([0.9, 0.1]), 200) for i = 1:N]
+        X = draw_series(N)
+        Y = draw_series(N)
 
         for (l, seed_surro) in ProgressBar(enumerate(seeds_surro), "Seeds", leave=false)
 
             for (i, limit) in ProgressBar(enumerate(limits), "Limits", leave=false)
                 for (j, threshold) in ProgressBar(enumerate(thresholds), "Thresholds", leave=false)
 
-                    igg = InfluenceGraphGenerator(SimpleTE, threshold=threshold, limit=limit, seed=seed_surro)
+                    Random.seed!(seed_surro)
+                    igg = InfluenceGraphGenerator(SimpleTE, threshold=threshold, limit=limit)
                     tot = 0
 
                     for idx in ProgressBar(1:N, leave=false)
@@ -100,28 +120,28 @@ if !no_TE
 
     save_data(result, path * "_TE.jld2")
 
-    mean_value = Matrix{Float64}(undef, size(result))
-    for i in eachindex(result)
-        mean_value[i] = mean(result[i])
-    end
+    # mean_value = Matrix{Float64}(undef, size(result))
+    # for i in eachindex(result)
+    #     mean_value[i] = mean(result[i])
+    # end
 
-    # Set vmin a little lower than minimum, so that 0 appears on a color scale lower than minimum when using clip=true
-    if any(mean_value .== 0)
-        vmin = minimum(mean_value[mean_value .!= 0])/2
-    else
-        vmin = minimum(mean_value)
-    end
+    # # Set vmin a little lower than minimum, so that 0 appears on a color scale lower than minimum when using clip=true
+    # if any(mean_value .== 0)
+    #     vmin = minimum(mean_value[mean_value .!= 0])/2
+    # else
+    #     vmin = minimum(mean_value)
+    # end
 
-    plt.figure(figsize=[6.4, 4.8].*1.2)
-    sns.heatmap(mean_value, annot=true, cmap="rocket_r", norm=plt.matplotlib.colors.LogNorm(vmin=vmin, clip=true))
-    plt.xlabel("Threshold")
-    plt.ylabel("Limit value")
-    xloc, xlabels = plt.xticks()
-    plt.xticks(xloc, thresholds)
-    yloc, ylabels = plt.yticks()
-    plt.yticks(yloc, labels, rotation="horizontal")
-    plt.savefig(path * "_TE.pdf", bbox_inches="tight")
-    plt.gcf()
+    # plt.figure(figsize=[6.4, 4.8].*1.2)
+    # sns.heatmap(mean_value, annot=true, cmap="rocket_r", norm=plt.matplotlib.colors.LogNorm(vmin=vmin, clip=true))
+    # plt.xlabel("Threshold")
+    # plt.ylabel("Limit value")
+    # xloc, xlabels = plt.xticks()
+    # plt.xticks(xloc, thresholds)
+    # yloc, ylabels = plt.yticks()
+    # plt.yticks(yloc, labels, rotation="horizontal")
+    # plt.savefig(path * "_TE.pdf", bbox_inches="tight")
+    # plt.gcf()
 
 end
 
@@ -147,15 +167,16 @@ if !no_JDD
     for (k, seed_all) in ProgressBar(enumerate(seeds_all), "All JDD", leave=true)
 
         Random.seed!(seed_all)
-        X = [rand(200) for i = 1:N]
-        Y = [rand(200) for i = 1:N]
+        X = draw_series(N)
+        Y = draw_series(N)
 
         for (l, seed_surro) in ProgressBar(enumerate(seeds_surro), "Seeds", leave=false)
 
             for (i, limit) in ProgressBar(enumerate(limits2), "Limits", leave=false)
                 for (j, threshold) in ProgressBar(enumerate(thresholds2), "Thresholds", leave=false)
 
-                    igg = InfluenceGraphGenerator(JointDistanceDistribution, alpha=threshold, limit=limit, seed=seed_surro)
+                    Random.seed!(seed_surro)
+                    igg = InfluenceGraphGenerator(JointDistanceDistribution, threshold=threshold, limit=limit)
                     tot = 0
 
                     for idx in ProgressBar(1:N, leave=false)
@@ -178,27 +199,27 @@ if !no_JDD
 
     save_data(result2, path * "_JDD.jld2")
 
-    mean_value2 = Matrix{Float64}(undef, size(result2))
-    for i in eachindex(result2)
-        mean_value2[i] = mean(result2[i])
-    end
+    # mean_value2 = Matrix{Float64}(undef, size(result2))
+    # for i in eachindex(result2)
+    #     mean_value2[i] = mean(result2[i])
+    # end
 
-    # Set vmin a little lower than minimum, so that 0 appears on a color scale lower than minimum when using clip=true
-    if any(mean_value2 .== 0)
-        vmin = minimum(mean_value2[mean_value2 .!= 0])/2
-    else
-        vmin = minimum(mean_value2)
-    end
+    # # Set vmin a little lower than minimum, so that 0 appears on a color scale lower than minimum when using clip=true
+    # if any(mean_value2 .== 0)
+    #     vmin = minimum(mean_value2[mean_value2 .!= 0])/2
+    # else
+    #     vmin = minimum(mean_value2)
+    # end
  
-    plt.figure(figsize=[6.4, 4.8].*1.2)
-    sns.heatmap(mean_value2, annot=true, cmap="rocket_r", norm=plt.matplotlib.colors.LogNorm(vmin=vmin, clip=true))
-    plt.xlabel("p-value")
-    plt.ylabel("Limit value")
-    xloc, xlabels = plt.xticks()
-    plt.xticks(xloc, thresholds2)
-    yloc, ylabels = plt.yticks()
-    plt.yticks(yloc, labels2, rotation="horizontal")
-    plt.savefig(path * "_JDD.pdf", bbox_inches="tight")
-    plt.gcf()
+    # plt.figure(figsize=[6.4, 4.8].*1.2)
+    # sns.heatmap(mean_value2, annot=true, cmap="rocket_r", norm=plt.matplotlib.colors.LogNorm(vmin=vmin, clip=true))
+    # plt.xlabel("p-value")
+    # plt.ylabel("Limit value")
+    # xloc, xlabels = plt.xticks()
+    # plt.xticks(xloc, thresholds2)
+    # yloc, ylabels = plt.yticks()
+    # plt.yticks(yloc, labels2, rotation="horizontal")
+    # plt.savefig(path * "_JDD.pdf", bbox_inches="tight")
+    # plt.gcf()
 
 end
