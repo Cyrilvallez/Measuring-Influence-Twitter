@@ -1,5 +1,6 @@
 using ArgParse, StatsBase
 import Random
+Random.seed!(12)
 # import PyPlot as plt
 # using PyPlot: @L_str
 # import Seaborn as sns
@@ -59,7 +60,6 @@ end
 
 args = parse_commandline()
 
-Random.seed!(123)
 
 N = args["N"]
 N_redo_all = args["N_exp"]
