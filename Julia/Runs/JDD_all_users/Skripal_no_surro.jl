@@ -37,7 +37,7 @@ cuttoff = WithoutCuttoff
 
 
 tsg = TimeSeriesGenerator(Minute(time_resolution), standardize=standardize)
-igg = InfluenceGraphGenerator(method, surrogates=surrogates, threshold=threshold, B=B, d=d, τ=τ) 
+igg = InfluenceGraphGenerator(method, surrogate=surrogates, threshold=threshold, B=B, d=d, τ=τ) 
 icg = InfluenceCascadeGenerator(cuttoff)
 
 pipeline = Pipeline(tsg, igg, icg)
