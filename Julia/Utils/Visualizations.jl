@@ -31,13 +31,13 @@ begin
     rcParams["font.serif"] = ["Computer Modern Roman"]
     rcParams["figure.dpi"] = 100
     rcParams["text.usetex"] = true
-    rcParams["legend.fontsize"] = 14
+    rcParams["legend.fontsize"] = 16
     rcParams["lines.linewidth"] = 2
     rcParams["lines.markersize"] = 6
     rcParams["axes.titlesize"] = 18
-    rcParams["axes.labelsize"] = 15
-    rcParams["xtick.labelsize"] = 12
-    rcParams["ytick.labelsize"] = 12
+    rcParams["axes.labelsize"] = 17
+    rcParams["xtick.labelsize"] = 14
+    rcParams["ytick.labelsize"] = 14
 end
 
 
