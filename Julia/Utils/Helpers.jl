@@ -8,7 +8,8 @@ import Random
 # need using ..Sensors without include here (see https://discourse.julialang.org/t/referencing-the-same-module-from-multiple-files/77775/2)
 using ..Sensors, ..PreProcessing
 
-export load_dataset, make_simplifier, partitions_actions_actors, save_data, load_data, log_experiment, latexify, latexify2
+export load_dataset, make_simplifier, partitions_actions_actors, save_data, load_data, log_experiment
+export latexify
 export Dataset, COP26, COP27, Skripal, RandomDays
 
 
@@ -343,10 +344,47 @@ end
 
 
 
+
 """
 Create a latex table from dataframe of strings. Use print(latexify(df)) in order to get the correct output (backslashes escaped correctly).
+Note that the ordering of the columns is implicit by the order of columns in the dataframes and not checked, thus caution should be used with the output if 
+the dataframes are manipulated after being returned by the functions creating them.
 """
-function latexify(df::DataFrame)
+function latexify(df)
+
+    T = typeof(df)
+
+    if T <: Vector
+        Ncols = length(names(df[1])) - 1
+        if Ncols == 2
+            return _latexify4(df)
+        elseif Ncols == 4 || Ncols == 8
+            return _latexify3(df)
+        else
+            throw(ArgumentError("Number of columns not recognized"))
+        end
+
+    elseif T <: DataFrame
+        Ncols = length(names(df)) - 1
+        Nrows = length(df[!, 1])
+        if Nrows == 3 && Ncols == 8
+            return _latexify2(df)
+        elseif Ncols == 6 || Ncols == 8
+            return _latexify1(df)
+        else
+            throw(ArgumentError("Number of columns not recognized"))
+        end
+
+    end
+
+end
+
+
+
+
+function _latexify1(df::DataFrame)
+
+    df = df[:, Not("partition")]
 
     N = length(names(df))
     M = length(df[:, 1])
@@ -380,7 +418,7 @@ function latexify(df::DataFrame)
     end
 
     # All \ need to be escaped
-    out = """\\begin{table}[]
+    out = """\\begin{table}[H]
     \\centering
     \\resizebox{\\textwidth}{!}{%
     \\begin{tabular}{|$cols}
@@ -398,7 +436,7 @@ function latexify(df::DataFrame)
 
     out *= """\\end{tabular}%
     }
-    \\caption{Top 10 most influent users using different influence metrics.}
+    \\caption{}
     \\label{tab:}
     \\end{table}"""
 
@@ -407,7 +445,8 @@ function latexify(df::DataFrame)
 end
 
 
-function latexify2(df::DataFrame)
+
+function _latexify2(df::DataFrame)
 
     if !(occursin("Before", df.partition[1])) || !(occursin("During", df.partition[2])) || !(occursin("After", df.partition[3]))
         throw(ArgumentError("Format error."))
@@ -422,7 +461,7 @@ function latexify2(df::DataFrame)
     col_names = " & \\multicolumn{1}{c|}{betweenness T-T} & \\multicolumn{1}{c|}{betweenness T-U} & \\multicolumn{1}{c|}{betweenness U-T} & \\multicolumn{1}{c|}{betweenness U-U} & " * 
         "\\multicolumn{1}{c|}{outdegree T-T} & \\multicolumn{1}{c|}{outdegree T-U} & \\multicolumn{1}{c|}{outdegree U-T} & \\multicolumn{1}{c|}{outdegree U-U} \\\\ \\hline"
 
-    out = """\\begin{table}[]
+    out = """\\begin{table}[H]
     \\centering
     \\resizebox{\\textwidth}{!}{%
     \\begin{tabular}{c|c|c|c|c|c|c|c|c|}
@@ -452,12 +491,182 @@ function latexify2(df::DataFrame)
     out *= """\\end{tabular}%
     }
     \\caption{}
-    \\label{tab:my-table}
+    \\label{tab:}
     \\end{table}
     """
 
     return out
 
 end
+
+
+
+function _latexify3(dfs::Vector)
+
+    if !occursin("Before", dfs[1].partition[1]) || !occursin("During", dfs[2].partition[1]) || !occursin("After", dfs[3].partition[1])
+        throw(ArgumentError("Mixup in partitions"))
+    end
+
+    Ncols = length(names(dfs[1])) - 1
+    titles = ["Before", "During", "After"]
+    cols = string(repeat(["c"], Ncols)...)
+
+    if Ncols == 4
+        col_names = "\\multicolumn{1}{|c|}{tweet count} & \\multicolumn{1}{c|}{follower count} & \\multicolumn{1}{c|}{retweet count} & \\multicolumn{1}{c|}{I score} \\\\ \\hline"
+    elseif Ncols == 8
+        col_names = "\\multicolumn{1}{|c|}{betweenness T-T} & \\multicolumn{1}{c|}{betweenness T-U} & \\multicolumn{1}{c|}{betweenness U-T} & \\multicolumn{1}{c|}{betweenness U-U} & " * 
+        "\\multicolumn{1}{c|}{outdegree T-T} & \\multicolumn{1}{c|}{outdegree T-U} & \\multicolumn{1}{c|}{outdegree U-T} & \\multicolumn{1}{c|}{outdegree U-U} \\\\ \\hline"
+    end
+
+    if Ncols == 4
+        size = "\\scriptsize"
+    else
+        size = "\\resizebox{\\textwidth}{!}{%"
+    end
+
+    out = """\\begin{table}[H]
+    \\centering
+    $size
+    \\begin{tabular}{$cols}
+    \\hline
+    """
+
+    all_lines_df = []
+    for df in dfs
+        df = df[:, Not("partition")]
+        N = length(names(df))
+        M = length(df[:, 1])
+
+        lines = []
+        for i = 1:M
+            line = ""
+            for (j, col) in enumerate(names(df))
+                if occursin("_", df[i, col])
+                    elem = replace(df[i, col], "_" => "\\_")
+                else
+                    elem = df[i, col]
+                end
+                if j == 1
+                    element = "\\multicolumn{1}{|c|}{$elem} & "
+                elseif j < N
+                    element = "\\multicolumn{1}{c|}{$elem} & "
+                else
+                    element = "\\multicolumn{1}{c|}{$elem} \\\\ "
+                end
+                line *= element
+            end
+            if i == M
+                line *= "\\hline"
+            end
+            push!(lines, line)
+        end
+        push!(all_lines_df, lines)
+    end
+
+    for (i, lines) in enumerate(all_lines_df)
+        out *= "\\multicolumn{$Ncols}{|c|}{$(titles[i])} \\\\ \\hline\n"
+        out *= "$col_names\n"
+
+        for (i, line) in enumerate(lines)
+            out *= "$line\n"
+        end
+
+        if i < length(dfs)
+            out *= "\\multicolumn{$Ncols}{c}{} \\\\ \\hline\n"
+        end
+    end
+
+    if Ncols == 8
+        out *= """\\end{tabular}%
+        }
+        """
+    else
+        out *= """\\end{tabular}
+        """
+    end
+
+    out *= """\\caption{}
+    \\label{tab:}
+    \\end{table}
+    """
+
+    return out
+
+end
+
+
+
+function _latexify4(dfs)
+
+    if !occursin("Before", dfs[1].partition[1]) || !occursin("During", dfs[2].partition[1]) || !occursin("After", dfs[3].partition[1])
+        throw(ArgumentError("Mixup in partitions"))
+    end
+
+    M = length(dfs[1][:, 1])
+
+    out = """\\begin{table}[H]
+    \\centering
+    \\resizebox{\\textwidth}{!}{%
+    \\begin{tabular}{|cc|c|cc|c|cc|}
+    \\cline{1-2} \\cline{4-5} \\cline{7-8}
+    \\multicolumn{2}{|c|}{Before} & \\multirow{$M}{*}{} & \\multicolumn{2}{c|}{During} & \\multirow{$M}{*}{} & \\multicolumn{2}{c|}{After} \\\\ \\cline{1-2} \\cline{4-5} \\cline{7-8}
+    \\multicolumn{1}{|c|}{outdegree} & betweenness &  & \\multicolumn{1}{|c|}{outdegree} & betweenness &  & \\multicolumn{1}{|c|}{outdegree} & betweenness \\\\ \\cline{1-2} \\cline{4-5} \\cline{7-8}
+    """
+
+    lines = []
+    for i = 1:M
+        line = ""
+        for (k, df) in enumerate(dfs)
+            df = df[:, Not("partition")]
+
+            for (j, col) in enumerate(names(df))
+
+                if occursin("_", df[i, col])
+                    elem = replace(df[i, col], "_" => "\\_")
+                else
+                    elem = df[i, col]
+                end
+
+                if k == 1 && j == 1
+                    line *= "\\multicolumn{1}{|c|}{$elem} & "
+                elseif j == 1
+                    line *= "\\multicolumn{1}{c|}{$elem} & "
+                elseif k == 3 && j == 2
+                    line *= "$elem \\\\"
+                else
+                    line *= "$elem & "
+                end
+
+            end
+
+            if k < 3
+                line *= " & "
+            end
+
+        end
+
+        if i == M
+            line *= " \\cline{1-2} \\cline{4-5} \\cline{7-8}"
+        end
+        push!(lines, line)
+
+    end
+
+
+    for (i, line) in enumerate(lines)
+        out *= "$line\n"
+    end
+
+    out *= """\\end{tabular}%
+    }
+    \\caption{}
+    \\label{tab:}
+    \\end{table}
+    """
+
+    return out
+
+end
+
 
 end # module

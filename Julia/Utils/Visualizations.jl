@@ -211,7 +211,7 @@ function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool =
     if y == "count_normalized"
         plt.ylabel("Normalized count of edges")
     else
-        plt.ylabel(uppercasefirst(y) * " of total number of edges")
+        plt.ylabel(uppercasefirst(y) * " of edges")
     end
     plt.legend(loc=loc)
     plt.grid(true, which="major", axis="y", zorder=0)
@@ -356,10 +356,10 @@ function plot_correlation_matrices(general_ranks, centrality_ranks, N = 50; save
         foldername += '/'
     end
 
-   output, labels = correlation_matrices(general_ranks, centrality_ranks, N)
+   output, labels, partitions = correlation_matrices(general_ranks, centrality_ranks, N)
 
     for i in 1:length(output)
-        partition = general_ranks[i].partition[1]
+        partition = partitions[i]
         partition = replace(partition, " " => "_")
         plt.figure()
         sns.heatmap(output[i], annot=true, cmap="rocket")

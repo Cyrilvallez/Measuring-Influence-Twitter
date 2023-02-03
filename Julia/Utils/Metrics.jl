@@ -251,6 +251,23 @@ function get_general_ranks(dataset::Type{<:Dataset}, partition_function::Union{F
 end
 
 
+function find_corresponding_col(col::AbstractString)
+    if col == "tweet_rank"
+        return "tweet_count"
+    elseif col == "follower_rank"
+        return "follower_count"
+    elseif col == "retweet_rank"
+        return "retweet_count"
+    elseif col == "I score_rank"
+        return "I_score"
+    elseif occursin("outdegree", col) || occursin("betweenness", col)
+        return replace(col, "_rank" => "")
+    else
+        throw(ArgumentError("column name not known"))
+    end
+
+end
+
 
 function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real, edge_type::AbstractString)
 
@@ -325,78 +342,107 @@ end
 
 
 
-function find_max_ranks(general_ranks::DataFrame, centrality_ranks::DataFrame, N::Int = 10)
+function find_max_ranks(general_ranks_list::Vector, centrality_ranks_list::Vector, N::Int = 10)
 
-    if !(length(unique(general_ranks.partition)) == 1) || !(length(unique(centrality_ranks.partition)) == 1) || general_ranks.partition[1] != centrality_ranks.partition[1]
-        throw(ArgumentError("Error in the partitions"))
-    end
+    dfs = []
+    partitions = []
+    for (general_ranks, centrality_ranks) in zip(general_ranks_list, centrality_ranks_list)
 
-    if !(general_ranks.username == centrality_ranks.username)
-        throw(ArgumentError("Error in the usernames"))
-    end
-
-    cols = [name for name in names(general_ranks) if occursin("rank", name)]
-    cols2 = [name for name in names(centrality_ranks) if occursin("rank", name)]
-
-    dic = OrderedDict()
-
-    for col in cols
-        sorting = sortperm(general_ranks[!, col])
-        users = general_ranks.username[sorting][1:N]
-
-        # Get corresponding value to put missing (-) in case of a 0
-        if col == "I score_rank"
-            corresponding_col = "I_score"
-        else
-            corresponding_col = replace(col, "_rank" => "_count")
+        if !(length(unique(general_ranks.partition)) == 1) || !(length(unique(centrality_ranks.partition)) == 1) || general_ranks.partition[1] != centrality_ranks.partition[1]
+            throw(ArgumentError("Error in the partitions"))
         end
-        vals = general_ranks[!, corresponding_col][sorting][1:N]
-        users[vals .== 0] .= "-"
 
-        dic[col] = users
+        if !(general_ranks.username == centrality_ranks.username)
+            throw(ArgumentError("Error in the usernames"))
+        end
+
+        cols = [name for name in names(general_ranks) if occursin("rank", name)]
+        cols2 = [name for name in names(centrality_ranks) if occursin("rank", name)]
+
+        dic = OrderedDict()
+        dic["partition"] = repeat([general_ranks.partition[1]], N)
+
+        for col in cols
+            sorting = sortperm(general_ranks[!, col])
+            users = general_ranks.username[sorting][1:N]
+
+            # Get corresponding value to put missing (-) in case of a 0
+            corresponding_col = find_corresponding_col(col)
+            vals = general_ranks[!, corresponding_col][sorting][1:N]
+            users[vals .== 0] .= "-"
+
+            dic[col] = users
+        end
+        for col in cols2
+            sorting = sortperm(centrality_ranks[!, col])
+            users = centrality_ranks.username[sorting][1:N]
+
+            # Get corresponding value to put missing (-) in case of a 0
+            corresponding_col = find_corresponding_col(col)
+            vals = centrality_ranks[!, corresponding_col][sorting][1:N]
+            users[vals .== 0.] .= "-"
+
+            dic[col] = users
+        end
+
+        push!(partitions, general_ranks.partition[1])
+        # Put partition as first column
+        df = DataFrame(dic)
+        df = select(df, "partition", :)
+        push!(dfs, df)
+
     end
-    for col in cols2
-        sorting = sortperm(centrality_ranks[!, col])
-        users = centrality_ranks.username[sorting][1:N]
 
-        # Get corresponding value to put missing (-) in case of a 0
-        corresponding_col = replace(col, "_rank" => "")
-        vals = centrality_ranks[!, corresponding_col][sorting][1:N]
-        users[vals .== 0.] .= "-"
-
-        dic[col] = users
+    if !(occursin("After", partitions[1])) || !(occursin("Before", partitions[2])) || !(occursin("During", partitions[3]))
+        throw(ArgumentError("Mixup of partitions."))
     end
 
-    println("The partition is $(general_ranks.partition[1])")
-    return DataFrame(dic)
+    return dfs[[2, 3, 1]]
 
 end
 
 
-function find_max_ranks(all_centrality_ranks::DataFrame, N::Int = 10)
 
-    if !(length(unique(all_centrality_ranks.partition)) == 1) 
-        throw(ArgumentError("Error in the partitions"))
+function find_max_ranks(general_ranks_list::Vector, N::Int = 10)
+
+    dfs = []
+    partitions = []
+    for general_ranks in general_ranks_list
+
+        if !(length(unique(general_ranks.partition)) == 1)
+            throw(ArgumentError("Error in the partitions"))
+        end
+
+        cols = [name for name in names(general_ranks) if occursin("rank", name)]
+
+        dic = OrderedDict()
+        dic["partition"] = repeat([general_ranks.partition[1]], N)
+
+        for col in cols
+            sorting = sortperm(general_ranks[!, col])
+            users = general_ranks.username[sorting][1:N]
+
+            # Get corresponding value to put missing (-) in case of a 0
+            corresponding_col = find_corresponding_col(col)
+            vals = general_ranks[!, corresponding_col][sorting][1:N]
+            users[vals .== 0] .= "-"
+
+            dic[col] = users
+        end
+        
+        push!(partitions, general_ranks.partition[1])
+        # Put partition as first column
+        df = DataFrame(dic)
+        df = select(df, "partition", :)
+        push!(dfs, df)
+
     end
 
-    cols = [name for name in names(all_centrality_ranks) if occursin("rank", name)]
-
-    dic = OrderedDict()
-
-    for col in cols
-        sorting = sortperm(all_centrality_ranks[!, col])
-        users = all_centrality_ranks.username[sorting][1:N]
-
-        # Get corresponding value to put missing (-) in case of a 0
-        corresponding_col = replace(col, "_rank" => "")
-        vals = all_centrality_ranks[!, corresponding_col][sorting][1:N]
-        users[vals .== 0.] .= "-"
-
-        dic[col] = users
+    if !(occursin("After", partitions[1])) || !(occursin("Before", partitions[2])) || !(occursin("During", partitions[3]))
+        throw(ArgumentError("Mixup of partitions."))
     end
 
-    println("The partition is $(all_centrality_ranks.partition[1])")
-    return DataFrame(dic)
+    return dfs[[2, 3, 1]]
 
 end
 
@@ -410,14 +456,16 @@ function correlation_matrices(general_ranks, centrality_ranks, N = 50)
 
     output = []
     labels = []
+    partitions = []
 
-    for (r1, r2) in zip(general_ranks, centrality_ranks)
-        partition = r1.partition[1]
-        if r1.username != r2.username
-            throw(ArgumentError("Both do not contain the same usernames."))
-        end
+    all_ranks = find_max_ranks(general_ranks, centrality_ranks, N)
 
-        ranks = find_max_ranks(r1, r2, N)
+    for ranks in all_ranks
+        partition = ranks.partition[1]
+        push!(partitions, partition)
+
+        ranks = ranks[:, Not("partition")]
+
         cols = [name for name in names(ranks) if occursin("rank", name)]
         labels_ = [split(col, '_')[1] for col in cols]
         corr_matrix = zeros(length(cols), length(cols))
@@ -443,7 +491,52 @@ function correlation_matrices(general_ranks, centrality_ranks, N = 50)
 
     end
 
-    return output, labels
+    return output, labels, partitions
+
+end
+
+
+
+function correlation_matrices(general_ranks::Vector, N = 50)
+
+    output = []
+    labels = []
+    partitions = []
+
+    all_ranks = find_max_ranks(general_ranks, N)
+
+    for ranks in all_ranks
+        partition = ranks.partition[1]
+        push!(partitions, partition)
+
+        ranks = ranks[:, Not("partition")]
+
+        cols = [name for name in names(ranks) if occursin("rank", name)]
+        labels_ = [split(col, '_')[1] for col in cols]
+        corr_matrix = zeros(length(cols), length(cols))
+
+        for (i, col1) in enumerate(cols)
+            
+            for (j, col2) in enumerate(cols)
+
+                users1 = ranks[!, col1]
+                users2 = ranks[!, col2]
+
+                if any(users1 .== "-") || any(users2 .== "-")
+                    @warn "Partition $partition : $col1 or $col2 has some missing values"
+                end
+                # corr_matrix[i,j] = corspearman(users1, users2)
+                corr_matrix[i,j] = length(intersect(users1, users2)) / length(users1)
+
+            end
+        end
+
+        push!(output, corr_matrix)
+        push!(labels, labels_)
+
+    end
+
+    return output, labels, partitions
 
 end
 
@@ -455,12 +548,7 @@ function correlation_JDD_TE(centrality_ranks_JDD, centrality_ranks_TE, N = 50)
         throw(ArgumentError("Number of partition mismatch."))
     end
 
-    dic = Dict([name => [] for name in names(centrality_ranks_JDD[1]) if occursin("rank", name)]...)
-    dic["partition"] = []
-
     for (r1, r2) in zip(centrality_ranks_JDD, centrality_ranks_TE)
-
-        partition = r1.partition[1]
 
         if names(r1) != names(r2)
             throw(ArgumentError("Dataframes do not have the same columns."))
@@ -470,8 +558,17 @@ function correlation_JDD_TE(centrality_ranks_JDD, centrality_ranks_TE, N = 50)
             throw(ArgumentError("Both do not contain the same usernames."))
         end
 
-        ranks1 = find_max_ranks(r1, N)
-        ranks2 = find_max_ranks(r2, N)
+    end
+
+    dic = Dict([name => [] for name in names(centrality_ranks_JDD[1]) if occursin("rank", name)]...)
+    dic["partition"] = []
+
+    all_ranks1 = find_max_ranks(centrality_ranks_JDD, N)
+    all_ranks2 = find_max_ranks(centrality_ranks_TE, N)
+
+    for (ranks1, ranks2) in zip(all_ranks1, all_ranks2)
+
+        partition = ranks1.partition[1]
 
         cols = [name for name in names(ranks1) if occursin("rank", name)]
 
@@ -495,8 +592,11 @@ function correlation_JDD_TE(centrality_ranks_JDD, centrality_ranks_TE, N = 50)
     end
     
     df = DataFrame(dic)
-    # sort rows by partition temporality
-    df[[1,2,3], :] = df[[2,3,1], :]
+
+    if !(occursin("Before", df.partition[1])) || !(occursin("During", df.partition[2])) || !(occursin("After", df.partition[3]))
+        throw(ArgumentError("Mixup of partitions."))
+    end
+
     # Put partition as first column
     df = select(df, "partition", :)
 
