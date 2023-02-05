@@ -192,7 +192,7 @@ end
 """
 Plot the different edge types count or proportion, for different partitions and/or datasets.
 """
-function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool = true, save::Bool = false, filename = nothing, loc="best", kwargs...)
+function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool = true, save::Bool = false, filename = nothing, loc="best", framealpha=0.6, kwargs...)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -213,7 +213,7 @@ function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool =
     else
         plt.ylabel(uppercasefirst(y) * " of edges")
     end
-    plt.legend(loc=loc)
+    plt.legend(loc=loc, framealpha=framealpha)
     plt.grid(true, which="major", axis="y", zorder=0)
     if log
         plt.yscale("log")
@@ -281,7 +281,7 @@ end
 
 
 function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFrame; control::Union{InfluenceCascades, Nothing} = nothing, split_by_partition::Bool = true, width::Real = 0.25,
-    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1], loc="best")
+    inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1], loc="best", framealpha=0.6)
 
     if save && isnothing(filename)
         throw(ArgumentError("You must provide a filename if you want to save the figure."))
@@ -343,7 +343,7 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
     plt.xlabel("Cascade level")
     plt.ylabel("Mean number of actors")
     if split_by_partition
-        plt.legend(loc=loc)
+        plt.legend(loc=loc, framealpha=framealpha)
     end
     plt.grid(true, which="major", axis="y", zorder=0)
     plt.xticks(tick_position, levels)
