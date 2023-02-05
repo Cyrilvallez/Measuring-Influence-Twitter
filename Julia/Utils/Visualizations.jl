@@ -31,13 +31,13 @@ begin
     rcParams["font.serif"] = ["Computer Modern Roman"]
     rcParams["figure.dpi"] = 100
     rcParams["text.usetex"] = true
-    rcParams["legend.fontsize"] = 16
-    rcParams["lines.linewidth"] = 2
+    rcParams["legend.fontsize"] = 18
+    rcParams["lines.linewidth"] = 2.5
     rcParams["lines.markersize"] = 6
-    rcParams["axes.titlesize"] = 18
-    rcParams["axes.labelsize"] = 17
-    rcParams["xtick.labelsize"] = 14
-    rcParams["ytick.labelsize"] = 14
+    rcParams["axes.titlesize"] = 20
+    rcParams["axes.labelsize"] = 19
+    rcParams["xtick.labelsize"] = 16
+    rcParams["ytick.labelsize"] = 16
 end
 
 
@@ -237,6 +237,16 @@ function plot_betweenness_centrality(influence_graphs::InfluenceGraphs, df::Data
 
     partitions, _, _ = partitions_actions_actors(df)
 
+    for i = 1:length(partitions)
+        if occursin("Before", partitions[i])
+            partitions[i] = "Before"
+        elseif occursin("During", partitions[i])
+            partitions[i] = "During"
+        elseif occursin("After", partitions[i])
+            partitions[i] = "After"
+        end
+    end
+
     # In this case remove default value
     if length(partitions) != 3 && reorder == [2,3,1]
         reorder = nothing
@@ -290,7 +300,6 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
         # Pad with zeros so that they all have the same length
         actor_levels = [vec([x... [0. for i = (length(x)+1):max_level]...]) for x in actor_levels]
         labels = sort(unique(df.partition))
-        labels = [split(label, " ")[1] for label in labels]
         if !isnothing(control)
             push!(labels, "Control")
         end
@@ -312,6 +321,16 @@ function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFr
         max_level = length(actor_levels[1])
         # dummy variable (will not be used)
         labels = [""]
+    end
+
+    for i = 1:length(labels)
+        if occursin("Before", labels[i])
+            labels[i] = "Before"
+        elseif occursin("During", labels[i])
+            labels[i] = "During"
+        elseif occursin("After", labels[i])
+            labels[i] = "After"
+        end
     end
 
     levels = collect(0:(max_level-1))
@@ -398,6 +417,16 @@ function plot_actor_frequency(df::DataFrame; split_by_partition::Bool = true, lo
         stats = collect(values(countmap(df."actor")))
     end
 
+    for i = 1:length(partitions)
+        if occursin("Before", partitions[i])
+            partitions[i] = "Before"
+        elseif occursin("During", partitions[i])
+            partitions[i] = "During"
+        elseif occursin("After", partitions[i])
+            partitions[i] = "After"
+        end
+    end
+
     plt.figure()
     plt.boxplot(stats)
     plt.xlabel("Partition")
@@ -455,6 +484,18 @@ function plot_action_frequency(df::DataFrame; split_by_partition::Bool = true, w
         # dummy variable (will not be used)
         partitions = [""]
     end
+
+
+    for i = 1:length(partitions)
+        if occursin("Before", partitions[i])
+            partitions[i] = "Before"
+        elseif occursin("During", partitions[i])
+            partitions[i] = "During"
+        elseif occursin("After", partitions[i])
+            partitions[i] = "After"
+        end
+    end
+
 
     X, tick_position = barplot_layout(length(counts), length(actions), width=width, inner_spacing=inner_spacing, outer_spacing=outer_spacing)
 
