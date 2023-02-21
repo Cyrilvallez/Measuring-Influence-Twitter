@@ -10,7 +10,7 @@ include("../Utils/Helpers.jl")
 include("../Utils/Metrics.jl")
 include("../Utils/Visualizations.jl")
 
-# Load the modules and reexport them so that they are available when importing only Engine (this removes the need to include every file in the correct order)
+# Load the modules and reexport them so that they are available when importing only Engine (this removes the need to include every file AND in the correct order)
 @reexport using .Sensors, .PreProcessing, .Visualizations, .Helpers, .Metrics
 
 export run_experiment, ProgressBar
@@ -88,7 +88,7 @@ end
 
 
 """
-Run a single experiment on only one of the possible partitions. This is used as a last resort to reduce running time for very long computations (compute each partition on a 
+Run a single experiment on only one of the partitions. This is used as a "last resort" to reduce running time for very long computations (compute each partition on a 
 different machine).
 """
 function run_experiment(dataset::Type{<:Dataset}, partition::AbstractString, agents::PreProcessingAgents, pipeline::Pipeline; N_days::Int = 13, save::Bool = true, experiment_name = nothing)
@@ -129,7 +129,7 @@ end
 
 """
 Provide a constructor to easily set the description of the bar (this is lacking in the original package).
-Note : this cannot be an optional argument in order to overload the constructor.
+Note: this cannot be an optional argument in order to overload the constructor.
 """
 function ProgressBar(wrapped::Any, description::AbstractString; leave::Bool = true)
     bar = ProgressBar(wrapped, leave=leave)
@@ -158,59 +158,6 @@ function verify_experiment_name(experiment_name)
     return experiment_folder
 end
 
-
-function dataset_description(df::DataFrame; save::Bool = false, save_folder::AbstractString = "../Results/")
-
-    if save_folder[end] != '/'
-        save_folder *= '/'
-    end
-
-    plot_names = ["actor_frequency.pdf", "action_frequency.pdf", "actor_wordcloud.svg"]
-    filenames = save_folder .* plot_names
-    effective_save = [save for i = 1:length(filenames)]
-
-    if save == true
-        for i = 1:length(filenames)
-            if isfile(filenames[i])
-                plot_name = uppercase(replace(split(plot_names[i], '.')[1], '_' => ' '))
-                @warn "The plot of $plot_name will not be saved because this would overwrite it."
-                effective_save[i] = false
-            end
-        end
-    end
-
-    plot_actor_frequency(df, save=effective_save[1], filename=filenames[1])
-    plot_action_frequency(df, save=effective_save[2], filename=filenames[2])
-    plot_actor_wordcloud(df, Nactor=300, save=effective_save[3], filename=filenames[3])
-
-end
-
-
-function result_analysis(influence_graphs::InfluenceGraphs, influence_cascades::InfluenceCascades, df::DataFrame,
-    save::Bool = false, save_folder::AbstractString = "../Results/")
-
-    if save_folder[end] != '/'
-        save_folder *= '/'
-    end
-
-    plot_names = ["proportion_edges.pdf", "mean_actors_cascade"]
-    filenames = save_folder .* plot_names
-    effective_save = [save for i = 1:length(filenames)]
-
-    if save == true
-        for i = 1:length(filenames)
-            if isfile(filenames[i])
-                plot_name = uppercase(replace(split(plot_names[i], '.')[1], '_' => ' '))
-                @warn "The plot of $plot_name will not be saved because this would overwrite it."
-                effective_save[i] = false
-            end
-        end
-    end
-
-    plot_edge_types(influence_graphs, df, save=effective_save[1], filename=filenames[1])
-    plot_actors_per_level(influence_cascades, df, save=effective_save[2], filename=filenames[2])
-
-end
 
 
 end # module

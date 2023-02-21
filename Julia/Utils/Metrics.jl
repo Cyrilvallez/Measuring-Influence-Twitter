@@ -12,6 +12,9 @@ export get_general_ranks, get_centrality_ranks, correlation_matrices, find_max_r
 export correlation_JDD_TE
 
 
+"""
+Return the statistics on the edges for the influence graphs as a dictionary (format for easy visualization with seaborn).
+"""
 function edge_types(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real) 
 
    partitions, actions, _ = partitions_actions_actors(df)
@@ -90,7 +93,7 @@ end
 
 
 """
-Compute a graph from several different, using majority vote to allocate edges.
+Compute a graph from several different graphs, using majority vote to allocate edges.
 """
 function graph_by_majority_vote(graph_list::Vector{InfluenceGraphs}; vote::Union{Int, Nothing} = nothing)
 
@@ -188,6 +191,11 @@ end
 
 
 
+"""
+Rank the users present in a `dataset` according to their tweet count, follower count, retweet count, and I score. If `by_partition` is true, the actors will be defined 
+using data inside each partition independently, otherwise using all the dataset provided. The partition will be defined using `partition_function`. Only users with 
+a tweet rate of at least `min_tweets` will be considered.
+"""
 function get_general_ranks(dataset::Type{<:Dataset}, partition_function::Union{Function, Missing}; by_partition::Bool = true, min_tweets::Int = 3)
 
     df = load_dataset(dataset)
@@ -251,6 +259,9 @@ function get_general_ranks(dataset::Type{<:Dataset}, partition_function::Union{F
 end
 
 
+"""
+Just a small helper function for mapping column names.
+"""
 function find_corresponding_col(col::AbstractString)
     if col == "tweet_rank"
         return "tweet_count"
@@ -269,7 +280,12 @@ function find_corresponding_col(col::AbstractString)
 end
 
 
-function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real, edge_type::AbstractString)
+
+"""
+Rank the users present in the dataframe `df` according to their centrality measures in the `influence_graphs`. By default, compute the centrality
+using the whole graph.
+"""
+function get_centrality_ranks(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real = 0, edge_type::AbstractString = "Any Edge")
 
     partitions, actions, actors = partitions_actions_actors(df)
 
@@ -297,7 +313,11 @@ end
 
 
 
-function get_centrality_ranks_all_edges(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real)
+"""
+Rank the users present in the dataframe `df` according to their centrality measures in the `influence_graphs`. Compute the centrality measures 
+according to all edge types.
+"""
+function get_centrality_ranks_all_edges(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real = 0)
 
     partitions, actions, actors = partitions_actions_actors(df)
 
@@ -341,7 +361,10 @@ function get_centrality_ranks_all_edges(influence_graphs::InfluenceGraphs, df::D
 end
 
 
-
+"""
+Return the `N` highest ranked users according to each of the measures in `general_ranks_list` and `centrality_ranks_list`, and sort the output 
+so that it is in chronological order according to the partitions: before, during and after.
+"""
 function find_max_ranks(general_ranks_list::Vector, centrality_ranks_list::Vector, N::Int = 10)
 
     dfs = []
@@ -402,7 +425,10 @@ function find_max_ranks(general_ranks_list::Vector, centrality_ranks_list::Vecto
 end
 
 
-
+"""
+Return the `N` highest ranked users according to each of the measures in `general_ranks_list`, and sort the output 
+so that it is in chronological order according to the partitions: before, during and after.
+"""
 function find_max_ranks(general_ranks_list::Vector, N::Int = 10)
 
     dfs = []
@@ -447,7 +473,10 @@ function find_max_ranks(general_ranks_list::Vector, N::Int = 10)
 end
 
 
-
+"""
+Compute the correlation matrix between each influence measure contained in `general_ranks` and `centrality_ranks`. The correlation is defined as the overlap 
+between the `N` highest ranked users according to the centrality measures. Note that this is computed for each partition.
+"""
 function correlation_matrices(general_ranks, centrality_ranks, N = 50)
 
     if length(general_ranks) != length(centrality_ranks)
@@ -496,7 +525,10 @@ function correlation_matrices(general_ranks, centrality_ranks, N = 50)
 end
 
 
-
+"""
+Compute the correlation between each influence measure contained in `general_ranks`. The correlation is defined as the overlap 
+between the `N` highest ranked users according to the centrality measures. 
+"""
 function correlation_matrices(general_ranks::Vector, N = 50)
 
     output = []
@@ -541,7 +573,9 @@ function correlation_matrices(general_ranks::Vector, N = 50)
 end
 
 
-
+"""
+Compute the correlation between centrality measures as computed using JDD and TE based graphs. 
+"""
 function correlation_JDD_TE(centrality_ranks_JDD, centrality_ranks_TE, N = 50)
 
     if length(centrality_ranks_JDD) != length(centrality_ranks_TE)

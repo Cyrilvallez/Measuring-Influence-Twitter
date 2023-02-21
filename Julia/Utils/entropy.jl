@@ -1,6 +1,9 @@
 using StatsBase: proportionmap, countmap
 
-
+"""
+Simple form of transfer entropy calculation using naive probability estimation (only compute frequency of states inside the time series).
+Only look at the current and previous time indices (k=l=1 in Schreiber's paper).
+"""
 function TE(X, Y)
 
     N = length(X)
@@ -27,7 +30,9 @@ function TE(X, Y)
 end
 
 
-
+"""
+Old version given by Tom (that I corrected). This is not robust and will issue a lot of NaN because of the states having zero probabilities (see last return line).
+"""
 function TE_old_revised(X,Y)
     # count the number of each category of occurence for H(yₜ | )
     Yₜ_0_Yₚ_0 = 0

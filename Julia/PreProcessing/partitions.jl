@@ -11,7 +11,7 @@ end
 
 
 """
-Partition data based on the sentiment of the tweets.
+Partition the data based on the sentiment of the tweets.
 """
 function sentiment(df::DataFrame)
 	df.partition = df.sentiment
@@ -21,7 +21,7 @@ end
 
 
 """
-Partition data based on the relative date of COP26.
+Partition the data based on the relative date of COP26.
 """
 function cop_26_dates(df::DataFrame)
 	decide = x -> x < Date(2021, 10, 31) ? "Before COP26" : (x > Date(2021, 11, 13) ? "After COP26" : "During COP26")
@@ -32,7 +32,7 @@ end
 
 
 """
-Partition data based on the relative date of COP27.
+Partition the data based on the relative date of COP27.
 """
 function cop_27_dates(df::DataFrame)
 	decide = x -> x < Date(2022, 11, 6) ? "Before COP27" : (x > Date(2022, 11, 19) ? "After COP27" : "During COP27")
@@ -43,7 +43,7 @@ end
 
 
 """
-Partition data based on the relative date of Skripal.
+Partition the data based on the relative date of Skripal.
 """
 function skripal_dates(df::DataFrame)
 	decide = x -> x < Date(2018, 03, 18) ? "Before campaign" : (x > Date(2018, 04, 1) ? "After campaign" : "During campaign")

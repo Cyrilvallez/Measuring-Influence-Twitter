@@ -117,6 +117,9 @@ function InfluenceGraphGenerator(::Type{JointDistanceDistribution}; surrogate::U
 end
 
 
+"""
+Full transfer entropy from CausalityTools.
+"""
 function InfluenceGraphGenerator(::Type{TransferEntropy}; estimator = Kraskov(k=3))
     func(x, y) = transferentropy(x, y, estimator)
     params = OrderedDict("function" => "TransferEntropy", "estimator" => string(estimator))
@@ -186,7 +189,9 @@ end
 
 
 
-
+"""
+Wrapper for surrogate testing.
+"""
 function _surrogate_wrapper(measure::Function, threshold::Real, comparator::Function, limit::Function, surrogate::Surrogate, Nsurro::Int)
 
     if (comparator != <) && (comparator != >)

@@ -3,9 +3,11 @@ using Logging
 
 
 """
-Define actor using the number of followers of each individual in the dataset.  
-The first N=actor_number users with most followers will be treated as individual actors,  
-while the other ones will be aggregated in bins of M=aggregate_size people.
+Define actors using the number of followers. If `by_partition` is true, the actors will be defined using data inside each partition independently, 
+otherwise using all the dataset provided. Only users with a tweet rate of at least `min_tweets` will be considered. The first `actor_number` users 
+with most followers will be treated as individual actors (pass "all" to use each user), while the other ones will be aggregated in bins of size 
+`aggregate_size` people.
+It returns both a function and a string that will be used for later logging.
 """
 function follower_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Union{Int, AbstractString} = 500, aggregate_size::Int = 1000)
 
@@ -25,7 +27,10 @@ end
 
 
 """
-Define actor using the username in the tweets, thus every people in the dataset is a different actor.
+Define actors using the authors of the tweets, thus every user in the dataset is a different actor. If `by_partition` is true, the actors will be defined 
+using data inside each partition independently, otherwise using all the dataset provided (the tweet constraint will be required inside each partition).
+Only users with a tweet rate of at least `min_tweets` will be considered.
+It returns both a function and a string that will be used for later logging.
 """
 function all_users(; by_partition::Bool = true, min_tweets::Int = 3)
 
@@ -44,6 +49,13 @@ end
 
 
 
+"""
+Define actors using the number of retweets. If `by_partition` is true, the actors will be defined using data inside each partition independently, 
+otherwise using all the dataset provided. Only users with a tweet rate of at least `min_tweets` will be considered. 
+The first `actor_number` users with highest retweet count will be treated as individual actors (pass "all" to use each user, or "all_positive" 
+to use each user having non-zero retweet count), while the other ones will be aggregated in bins of size `aggregate_size` people. 
+It returns both a function and a string that will be used for later logging.
+"""
 function retweet_count(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Union{Int, AbstractString} = 500, aggregate_size::Int = 1000)
 
 	log = "retweet_count(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size)"
@@ -61,6 +73,14 @@ end
 
 
 
+"""
+Define actors using the I score (from paper "Influence and Passivity in Social Media"). If `by_partition` is true, the actors will be defined 
+using data inside each partition independently, otherwise using all the dataset provided. Only users with a tweet rate of at least `min_tweets` 
+will be considered. The first `actor_number` users with highest I score will be treated as individual actors (pass "all" to use each user, 
+or "all_positive" to use each user having non-zero I score), while the other ones will be aggregated in bins of size `aggregate_size` people.
+It returns both a function and a string that will be used for later logging.
+The `max_iter` and `max_residual` parameters are used for the iterative procedure of the algorithm.
+"""
 function IP_scores(; by_partition::Bool = true, min_tweets::Int = 3, actor_number::Union{Int, AbstractString} = 500, aggregate_size::Int = 1000, max_iter::Int = 200, max_residual::Real = 1e-3)
 
 	log = "IP_scores(by_partition=$by_partition, min_tweets=$min_tweets, actor_number=$actor_number, aggregate_size=$aggregate_size, max_iter=$max_iter, max_residual=$max_residual)"
@@ -91,7 +111,9 @@ actor_options = [
 
 
 
-
+"""
+Contain the logic for the follower_count() function.
+"""
 function _follower_count(min_tweets::Int, actor_number::Union{Int, AbstractString}, aggregate_size::Int)
 
 	possibilities = ["all"]
@@ -167,6 +189,9 @@ end
 
 
 
+"""
+Contain the logic for the all_user() function.
+"""
 function _all_users(min_tweets::Int = 3)
 
 	function _all_users_wrapped(df)
@@ -183,6 +208,9 @@ end
 
 
 
+"""
+Contain the logic for the retweet_count() function.
+"""
 function _retweet_count(min_tweets::Int, actor_number::Union{Int, AbstractString}, aggregate_size::Int)
 
 	possibilities = ["all", "all_positive"]
@@ -269,7 +297,9 @@ end
 
 
 
-
+"""
+Contain the logic for the IP_scores() function.
+"""
 function _IP_scores(min_tweets::Int, actor_number::Union{Int, AbstractString}, aggregate_size::Int, max_iter::Int, max_residual::Real)
 
 	possibilities = ["all", "all_positive"]

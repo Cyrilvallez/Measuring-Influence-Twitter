@@ -18,7 +18,7 @@ struct PreProcessingAgents
     partition_function::Function
     action_function::Function
     actor_function::Function
-    # Dump some parameters so we can have access to them later
+    # Dump some parameters so we can log them later
     actor_parameters::AbstractString
 
 

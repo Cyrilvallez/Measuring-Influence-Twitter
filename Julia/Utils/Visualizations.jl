@@ -228,6 +228,10 @@ function plot_edge_types(graphs, dfs, cuttoffs; y::String = "count", log::Bool =
 end
 
 
+
+"""
+Plot betweenness centrality as violin plots.
+"""
 function plot_betweenness_centrality(influence_graphs::InfluenceGraphs, df::DataFrame, cuttoff::Real = 0.0; width=1., cut=0,
     save::Bool = false, filename = nothing, reorder = [2,3,1])
 
@@ -280,6 +284,9 @@ end
 
 
 
+"""
+Plot the mean number of actors at each level of the influence cascades.
+"""
 function plot_actors_per_level(influence_cascades::InfluenceCascades, df::DataFrame; control::Union{InfluenceCascades, Nothing} = nothing, split_by_partition::Bool = true, width::Real = 0.25,
     inner_spacing::Real = 0.01, outer_spacing::Real = width, log::Bool = true, save::Bool = false, filename = nothing, reorder=[2, 3, 1], loc="best", framealpha=0.6)
 
@@ -361,6 +368,9 @@ end
 
 
 
+"""
+Plot the correlation matrices between influence measures as heatmaps.
+"""
 function plot_correlation_matrices(general_ranks, centrality_ranks, N = 50; save::Bool = false, foldername = nothing)
 
     if save && isnothing(foldername)
@@ -429,7 +439,7 @@ function plot_actor_frequency(df::DataFrame; split_by_partition::Bool = true, lo
 
     plt.figure()
     plt.boxplot(stats)
-    plt.xlabel("Partition")
+    plt.xlabel("Strata")
     ticks = plt.xticks()[1]
     plt.xticks(ticks, partitions)
     plt.ylabel("Number of tweets per actor")
@@ -504,7 +514,7 @@ function plot_action_frequency(df::DataFrame; split_by_partition::Bool = true, w
         plt.bar(X[i,:], counts[i], width=width, label=partitions[i], zorder=2)
     end
     plt.xlabel("Actions")
-    plt.ylabel("Number of tweets per action")
+    plt.ylabel("Number of tweets")
     if split_by_partition
         plt.legend()
     end
@@ -676,332 +686,6 @@ function barplot_layout(Nbar::Int, xaxis_length::Int; width::Real = 0.25, inner_
 
 end
 
-
-function influence_layout(adj::Matrix{Matrix}; simplifier = x->(maximum(x)>0.75))
-    graph = simplifier.(adj)
-    num_nodes = size(graph)[1]
-    influencers = fill(false, num_nodes)
-    no_influence = fill(false, num_nodes)
-    x_pos = zeros(num_nodes)
-    y_pos = zeros(num_nodes)
-    for (i,v) in enumerate(eachcol(graph))
-        if sum(v)==0
-            influencers[i] = true
-        end
-    end
-    for (i,v) in enumerate(eachrow(graph))
-        if sum(v)==0
-            no_influence[i] = true
-        end
-    end
-    sources = influencers .&& .!no_influence
-    if sum(sources)>0
-        x_pos[sources] .= sum(sources)>1 ? range(-1,1,sum(sources)) : 0
-        y_pos[sources] .= -1
-    end
-    empties = influencers .&& no_influence
-    if sum(empties)>0
-        x_pos[empties] .= sum(empties)>1 ? range(-1,1,sum(empties)) : 0
-        y_pos[empties] .= 1
-    end
-    sinks   = .!influencers .&& no_influence
-    if sum(sinks)>0
-        x_pos[sinks] .= sum(sinks)>1 ? range(-1,1,sum(sinks)) : 0
-        y_pos[sinks] .= 0.8
-    end
-    middle  = .!influencers .&& .!no_influence
-    if sum(middle)>=2
-        θ = range(0,2*π,sum(middle)+1)[1:(end-1)]
-        y_pos[middle] = cos.(θ).*0.5
-        x_pos[middle] = sin.(θ)
-    elseif sum(middle)==1
-        y_pos[middle] .= 0
-        x_pos[middle] .= 0
-    end
-
-    return x_pos, y_pos, (1:length(x_pos))[influencers.&& .~no_influence]
-end
-
-
-
-########################################### Old versions #######################################
-
-
-"""
-Plot the graph on a world map.
-"""
-function plot_graph_map(df::DataFrame)
-
-    iso_codes = sort(unique(df.actor))
-	indices = indexin(iso_codes, df.actor)
-	countries = df."Country"[indices]
-	traces = Vector{GenericTrace{Dict{Symbol, Any}}}()
-		
-	for (i, e) in enumerate(edges(g))
-    	trace = scattergeo(  
-	    	mode = "markers+lines",
-	    	locations = [iso_codes[src(e)], iso_codes[dst(e)]],
-	    	marker = attr(size = 8, color="blue"),
-			line = attr(color="red", width=1),
-			showlegend=false,
-			name = "",
-			hovertext = [countries[src(e)], countries[dst(e)]],
-		)
-    	push!(traces, trace)
-	end
-
-	layout = Layout(
-		title_text = "Influence graph (undirected)",
-    	showlegend = false,
-    	geo = attr(
-        	showland = true,
-        	showcountries = true,
-        	showocean = true,
-        	countrywidth = 0.5,
-        	#landcolor = "rgb(230, 145, 56)",
-        	#lakecolor = "rgb(0, 255, 255)",
-        	#oceancolor = "rgb(0, 255, 255)",
-			projection = attr(type = "natural earth"),
-			#scope = "africa"
-			),
-		#modebar = attr(remove = ["zoomOutGeo"]),
-		#dragmode = "pan"
-		)
-
-        return traces, layout
-        
-end
-
-
-
-"""
-Plot the mean number of actors of all the influence cascades, at each level.
-"""
-function plot_actors_per_level_old(influence_cascades::InfluenceCascades, df::DataFrame; split_by_partition::Bool = true, save::Bool = false, filename = nothing)
-
-    if save && isnothing(filename)
-        throw(ArgumentError("You must provide a filename if you want to save the figure."))
-    end
-
-    if split_by_partition
-        actor_levels = mean_actors_per_level.(influence_cascades)
-        levels = [0:(length(x)-1) for x in actor_levels]
-        titles = sort(unique(df.partition))
-    else
-        actor_levels = mean_actors_per_level(vcat(influence_cascades...))
-        levels = 0:(length(actor_levels)-1)
-    end
-
-    if split_by_partition
-        N = length(actor_levels)
-        if N == 1
-            Nx = 1
-            Ny = 1
-        elseif N == 2
-            Nx = 2
-            Ny = 1
-            figsize = (8, 4)
-        elseif N <= 4
-            Nx = min(2, N)
-            Ny = N ÷ 2 + 1
-            figsize = (8, 8)
-        else
-            Nx = 3
-            Ny = N ÷ 3 + 1
-            figsize = (8, 8)
-        end
-
-        if !(Nx == 1 && Ny == 1)
-            (fig, axes) = plt.subplots(Ny, Nx, figsize=figsize, sharex=true, sharey=true)
-            idx = 0
-            for ax in axes
-                idx += 1
-                if idx > N
-                    break
-                else
-                    ax.bar(levels[idx], actor_levels[idx], zorder=2)
-                    ax.set(title=titles[idx])
-                    ax.grid(true, which="major", axis="y", zorder=0)
-                    ax.tick_params(labelbottom=true)
-                end
-            end
-        
-            for ax in axes[:,1]
-                ax.set(ylabel="Mean number of actors")
-            end
-            for ax in axes[end, :]
-                ax.set(xlabel=" Cascade level")
-                left, right = ax.get_xlim()
-                xticks = ceil(left):floor(right)
-                ax.set(xticks=xticks)
-            end
-
-            # Remove unused axes
-            idx = 0
-            for ax in axes
-                idx += 1
-                if idx > N
-                    plt.delaxes(ax)
-                end
-            end
-
-            if save
-                fig.savefig(filename, bbox_inches="tight", dpi=400)
-            end
-            return plt.gcf()
-        
-        # In case we split by partition but the partition is a unique value
-        else
-            plt.figure()
-            plt.bar(levels[1], actor_levels[1], zorder=2)
-            plt.xlabel("Level")
-            plt.ylabel("Mean number of actors")
-            plt.grid(true, which="major", axis="y", zorder=0)
-            if save
-                plt.savefig(filename, bbox_inches="tight", dpi=400)
-            end
-            return plt.gcf()
-        end
-
-    else
-        plt.figure()
-        plt.bar(levels, actor_levels, zorder=2)
-        plt.xlabel("Level")
-        plt.ylabel("Mean number of actors")
-        plt.grid(true, which="major", axis="y", zorder=0)
-        if save
-            plt.savefig(filename, bbox_inches="tight", dpi=400)
-        end
-        return plt.gcf()
-    end
-end
-
-
-
-"""
-Plot the number of appearance of each action in the dataset as a barplot. 
-"""
-function plot_action_frequency_old(df::DataFrame; split_by_partition::Bool = true, log::Bool = true, save::Bool = false, filename = nothing)
-
-    if save && isnothing(filename)
-        throw(ArgumentError("You must provide a filename if you want to save the figure."))
-    end
-
-    if split_by_partition
-        countmaps = combine(groupby(df, "partition"), "action" => countmap => "countmap")
-        partitions = countmaps."partition"
-        counts = collect.(values.(countmaps."countmap"))
-        actions = collect.(keys.(countmaps."countmap"))
-        # Sort to ensure that we get the same ordering of the actions each time
-        for i in 1:length(counts)
-            sorting = sortperm(actions[i])
-            counts[i] = counts[i][sorting]
-            actions[i] = actions[i][sorting]
-        end
-    else
-        countmaps = countmap(df."action")    
-        counts = collect(values(countmaps))
-        actions = collect(keys(countmaps))
-        # sort to be coherent with the case when we split by partition
-        sorting = sortperm(actions)
-        counts = counts[sorting]
-        actions = actions[sorting]
-    end
-
-    if split_by_partition
-
-        N = length(counts)
-        if N == 1
-            Nx = 1
-            Ny = 1
-        elseif N == 2
-            Nx = 2
-            Ny = 1
-            figsize = (8, 4)
-        elseif N <= 4
-            Nx = min(2, N)
-            Ny = N ÷ 2 + 1
-            figsize = (8, 8)
-        else
-            Nx = 3
-            Ny = N ÷ 3 + 1
-            figsize = (8, 8)
-        end
-
-        if !(Nx == 1 && Ny == 1)
-            (fig, axes) = plt.subplots(Ny, Nx, figsize=figsize, sharex=true, sharey=true)
-            idx = 0
-            for ax in axes
-                idx += 1
-                if idx > N
-                    break
-                else
-                    ax.bar(actions[idx], counts[idx], zorder=2)
-                    ax.set(title=partitions[idx])
-                    ax.grid(true, which="major", axis="y", zorder=0)
-                    ax.tick_params(labelbottom=true)
-                    if log
-                        ax.set(yscale="log")
-                        ax.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
-                    end
-                end
-            end
-        
-            for ax in axes[:,1]
-                ax.set(ylabel="Number of tweets per action")
-            end
-            for ax in axes[end, :]
-                ax.set(xlabel="Action")
-            end
-
-            # Remove unused axes
-            idx = 0
-            for ax in axes
-                idx += 1
-                if idx > N
-                    plt.delaxes(ax)
-                end
-            end
-
-            if save
-                fig.savefig(filename, bbox_inches="tight", dpi=400)
-            end
-            return plt.gcf()
-
-        # In case we split by partition but the partition is a unique value
-        else
-            plt.figure()
-            plt.bar(actions, counts, zorder=2)
-            plt.xlabel("Actions")
-            plt.ylabel("Number of tweets per action")
-            plt.grid(true, which="major", axis="y", zorder=0)
-            if log
-                plt.yscale("log")
-                plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
-            end
-            if save
-                plt.savefig(filename, bbox_inches="tight", dpi=400)
-            end
-            return plt.gcf()
-        end
-
-    else
-        plt.figure()
-        plt.bar(actions, counts, zorder=2)
-        plt.xlabel("Actions")
-        plt.ylabel("Number of tweets per action")
-        plt.grid(true, which="major", axis="y", zorder=0)
-        if log
-            plt.yscale("log")
-            plt.grid(true, which="minor", axis="y", zorder=0, alpha=0.4)
-        end
-        if save
-            plt.savefig(filename, bbox_inches="tight", dpi=400)
-        end
-        return plt.gcf()
-    end
-
-end
 
 
 end # module
