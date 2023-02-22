@@ -148,7 +148,7 @@ function plot_graph(graphs::InfluenceGraphs, df::DataFrame, partition::Union{Int
         if !(partition in partitions)
             throw(ArgumentError("The partition you asked for is incorrect. It must be one of $partitions."))
         end
-        idx = findall(partition .== partitions)[1]
+        idx = findfirst(partition .== partitions)
     end
 
     node_labels = node_labels[idx]

@@ -37,6 +37,12 @@ end
 Parse a string and return corresponding expression. Useful for being able to pass anonymous functions
 as string (just surround the anonymous function with quotes) for later logging (otherwise once the anonymous function
 is created there are no ways of getting back the litteral expression it executes).
+
+!!! In this exact case defining a function using eval inside another function does not cause problems of world age (see 
+https://docs.julialang.org/en/v1/manual/methods/#Redefining-Methods & https://discourse.julialang.org/t/world-age-problem-explanation/9714/4)
+because the eval function is called inside a wrapper function, and the wrapper itself is returned, thus the eval function is never actually evaluated before
+we return the InfluenceGraphGenerator. At this point, we hit global scope and the world age is incremented.
+In every other situations, calling `parse_string` is very likely to create problems of world age.
 """
 function parse_string(s::AbstractString)
     expression = eval(Meta.parse(s))
