@@ -38,15 +38,18 @@ Parse a string and return corresponding expression. Useful for being able to pas
 as string (just surround the anonymous function with quotes) for later logging (otherwise once the anonymous function
 is created there are no ways of getting back the litteral expression it executes).
 
-!!! In this exact case defining a function using eval inside another function does not cause problems of world age (see 
-https://docs.julialang.org/en/v1/manual/methods/#Redefining-Methods & https://discourse.julialang.org/t/world-age-problem-explanation/9714/4)
-because the eval function is called inside a wrapper function, and the wrapper itself is returned, thus the eval function is never actually evaluated before
-we return the InfluenceGraphGenerator. At this point, we hit global scope and the world age is incremented.
-In every other situations, calling `parse_string` is very likely to create problems of world age.
+!!! In most situations, defining a function using eval inside another function causes problems of world age (see 
+https://docs.julialang.org/en/v1/manual/methods/#Redefining-Methods & https://discourse.julialang.org/t/world-age-problem-explanation/9714/4).
+In our case, because the `eval` function is called inside a wrapper function, and the wrapper itself is returned, the eval function is never actually evaluated before  
+we return the InfluenceGraphGenerator. Thus if the Generator was defined in global scope, then the world age is incremented and there are no issues.
+However, to avoid situations potentially causing problems if InfluenceGraphGenerator are defined inside functions, we used `Base.invokelatest` in the
+wrapper function definition (see function `_surrogate_wrapper`). This ensures that the method defined using `eval` is always correctly interpreted
+by Julia. However, this sometimes decreases performance. If performance is critical, one should remove `Base.invokelatest` in `_surrogate_wrapper` and make sure
+that all InfluenceGraphGenerator are defined in global scope (i.e. not inside functions etc).
 """
 function parse_string(s::AbstractString)
-    expression = eval(Meta.parse(s))
-    return expression
+    anonymous_function = eval(Meta.parse(s))
+    return anonymous_function
 end
 
 
@@ -215,7 +218,8 @@ function _surrogate_wrapper(measure::Function, threshold::Real, comparator::Func
             end
 
             # This is accepted since it is significantly different than for the surrogates
-            if comparator(causality_value, limit(surro_values))
+            # if comparator(causality_value, limit(surro_values))
+            if comparator(causality_value, Base.invokelatest(limit, surro_values))
                 return 1
             # This is not accepted in comparison to the surrogates
             else
