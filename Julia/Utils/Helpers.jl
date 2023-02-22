@@ -13,7 +13,7 @@ export latexify
 export Dataset, COP26, COP27, Skripal, RandomDays
 
 
-DATA_FOLDER = PreProcessing.PROJECT_FOLDER * "/Data/"
+DATA_FOLDER = PROJECT_FOLDER * "/Data/"
 
 # Those will be used in an "enum" fashion for dispatch (they do not hold any
 # fields, only their name are used)

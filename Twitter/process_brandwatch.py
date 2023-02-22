@@ -9,9 +9,12 @@ Created on Thu Oct 13 10:46:34 2022
 import pandas as pd
 import urlexpander
 import tldextract
+import os
 from datetime import datetime
 
-filename = '~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_experiment_with_followers.csv'
+project_folder = os.path.dirname(os.path.dirname(__file__))
+
+filename = project_folder + '/Data/BrandWatch/Skripal/skripal_experiment_with_followers.csv'
 df = pd.read_csv(filename, sep='\t', dtype=object)
 
 # Select only non missing data
@@ -19,6 +22,7 @@ df = df[pd.notnull(df["Expanded URLs"])]
 
 # Remove duplicates
 df = df.drop_duplicates(df)
+
 
 #%%
 
@@ -76,7 +80,7 @@ df["domain"] = df["urls"].apply(get_domain_and_suffix)
 #%%
 
 # Export to json
-df.to_json('~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_clean.json', orient="records", lines=True)
+df.to_json(project_folder + '/Data/BrandWatch/Skripal/skripal_clean.json', orient="records", lines=True)
 
 
 #%%
@@ -128,7 +132,7 @@ df = df[mask]
 df = df.drop(labels=["text", "urls"], axis="columns")
 
 # Export to json
-df.to_json('~/Desktop/Thesis/Data/BrandWatch/Skripal/skripal_clean_lightweight.json', orient="records", lines=True)
+df.to_json(project_folder + '/Data/BrandWatch/Skripal/skripal_clean_lightweight.json', orient="records", lines=True)
 
 
 

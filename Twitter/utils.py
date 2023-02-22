@@ -12,8 +12,11 @@ from datetime import datetime, date, timedelta, timezone
 import pandas as pd
 import numpy as np
 
+CURRENT_FOLDER = os.path.dirname(__file__)
+PROJECT_FOLDER = os.path.dirname(CURRENT_FOLDER)
 
-def get_credentials(path: str = ".twitter_credentials.yaml") -> dict:
+
+def get_credentials(path: str = CURRENT_FOLDER + "/.twitter_credentials.yaml") -> dict:
     """
     Retrieves the twitter credential from a yaml file.
 
@@ -21,7 +24,7 @@ def get_credentials(path: str = ".twitter_credentials.yaml") -> dict:
     ----------
     path : str, optional
         The path to the yaml file containing the credentials. The default
-        is ".twitter_credential.yaml".
+        is CURRENT_FOLDER + "/.twitter_credentials.yaml".
 
     Returns
     -------
@@ -98,7 +101,7 @@ def split_time_interval(start_time: datetime, end_time: datetime,
 
 
 def format_filename(filename: str, time_intervals: list[datetime], 
-                    folder: str = '../Data/Twitter/', extension: str = '.json') -> list[str]:
+                    folder: str = PROJECT_FOLDER + '/Data/Twitter/', extension: str = '.json') -> list[str]:
     """
     Return a list of complete paths to the files we will create.
 
@@ -110,7 +113,7 @@ def format_filename(filename: str, time_intervals: list[datetime],
         Time intervals corresponding to the query dates, as returned by 
         `split_time_intervals`.
     folder : str, optional
-        Where to store the tweets. The default is '../Data/Twitter/'.
+        Where to store the tweets. The default is PROJECT_FOLDER + '/Data/Twitter/'.
     extension : str, optional
         The extension for saving the tweets. The default is '.json'.
 
@@ -200,14 +203,14 @@ def get_random_date(left_lim: date, right_lim: date, N: int) -> list[datetime]:
 
 
 
-def clean_news_table(path: str = '../Data/news_table-v1-UT60-FM5.csv') -> None:
+def clean_news_table(path: str = PROJECT_FOLDER + '/Data/news_table-v1-UT60-FM5.csv') -> None:
     """
     Remove all duplicates in the news table, and save the clean version to csv.
 
     Parameters
     ----------
     path : str, optional
-        The path to the news table. The default is '../Data/news_table-v1-UT60-FM5.csv'.
+        The path to the news table. The default is PROJECT_FOLDER + '/Data/news_table-v1-UT60-FM5.csv'.
 
     Returns
     -------
@@ -228,18 +231,18 @@ def clean_news_table(path: str = '../Data/news_table-v1-UT60-FM5.csv') -> None:
     # rename column (for consistency)
     news.rename(columns={'Domain': 'domain'}, inplace=True)
     
-    news.to_csv('../Data/news_table_clean.csv', index=False)
+    news.to_csv(PROJECT_FOLDER + '/Data/news_table_clean.csv', index=False)
     
     
     
-def clean_full_newsguard_table(path: str = '../Data/NewsGuard-metadata-2022090100.csv') -> None:
+def clean_full_newsguard_table(path: str = PROJECT_FOLDER + '/Data/NewsGuard-metadata-2022090100.csv') -> None:
     """
     Remove all duplicates in the full newsguard table, and save the clean version to csv.
 
     Parameters
     ----------
     path : str, optional
-        The path to the news table. The default is '../Data/NewsGuard-metadata-2022090100.csv'.
+        The path to the news table. The default is PROJECT_FOLDER + '/Data/NewsGuard-metadata-2022090100.csv'.
 
     Returns
     -------
@@ -267,4 +270,4 @@ def clean_full_newsguard_table(path: str = '../Data/NewsGuard-metadata-202209010
     # Create class column based on the newsguard criterion (score of 60)
     news['class'] = news['score'].apply(lambda x: 'U' if x < 60 else 'T')
     
-    news.to_csv('../Data/newsguard_full_table_clean.csv', index=False)
+    news.to_csv(PROJECT_FOLDER + '/Data/newsguard_full_table_clean.csv', index=False)

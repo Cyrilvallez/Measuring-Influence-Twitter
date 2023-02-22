@@ -17,7 +17,7 @@ import utils
 
 def random_queries(folder_name:str, query_file:str, N_days:int, left_lim: date, right_lim: date,
                    max_per_page: int, max_pages: int, verbose: bool = True,
-                   folder_prefix: str = '../Data/Twitter/') -> None:
+                   folder_prefix: str = utils.PROJECT_FOLDER + '/Data/Twitter/') -> None:
     """
     Will randomly query twitter API for `N_days` days between `left_lim` and
     `right_lim`, using the query in the text file `query_file`. Results will
@@ -43,7 +43,8 @@ def random_queries(folder_name:str, query_file:str, N_days:int, left_lim: date, 
     verbose : bool, optional
         Whether to write some summary to the standard output. The default is True.
     folder_prefix : str, optional
-        Path for storing the results (prefix path to `folder_name`). The default is '../Data/Twitter/'.
+        Path for storing the results (prefix path to `folder_name`). The default is 
+        utils.PROJECT_FOLDER + '/Data/Twitter/'.
 
     Raises
     ------
@@ -130,7 +131,7 @@ if __name__ == '__main__':
                         help='Max number of API calls. Give `-1` for no limit.')
     parser.add_argument('--verbose', type=str, default='True', choices=['True', 'False'],
                         help='Whether to write some summary to standard output. The default is True')
-    parser.add_argument('--folder_prefix', type=str, default='../Data/Twitter/',
+    parser.add_argument('--folder_prefix', type=str, default=utils.PROJECT_FOLDER + '/Data/Twitter/',
                         help='Prefix to the path to the output files (the full path will be folder_prefix + folder.')
     args = parser.parse_args()
     

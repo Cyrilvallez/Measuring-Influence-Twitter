@@ -14,8 +14,9 @@ include("../Utils/Visualizations.jl")
 @reexport using .Sensors, .PreProcessing, .Visualizations, .Helpers, .Metrics
 
 export run_experiment, ProgressBar
+export RESULT_FOLDER
 
-RESULT_FOLDER = PreProcessing.PROJECT_FOLDER * "/Results"
+RESULT_FOLDER = PROJECT_FOLDER * "/Results"
 
 
 """

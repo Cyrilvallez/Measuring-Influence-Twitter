@@ -66,7 +66,7 @@ N_redo_all = args["N_exp"]
 N_redo_surro = args["N_seeds"]
 no_TE = args["no_TE"]
 no_JDD = args["no_JDD"]
-path = "../Results/Find_thresholds/" * args["filename"]
+path = RESULT_FOLDER * "/Find_thresholds/" * args["filename"]
 mkpath(dirname(path))
 
 # Random seeds
