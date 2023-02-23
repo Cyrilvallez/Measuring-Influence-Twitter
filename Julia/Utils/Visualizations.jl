@@ -29,8 +29,8 @@ begin
     rcParams = plt.PyDict(plt.matplotlib."rcParams")
     rcParams["font.family"] = ["serif"]
     rcParams["font.serif"] = ["Computer Modern Roman"]
-    rcParams["figure.dpi"] = 100
     rcParams["text.usetex"] = true
+    rcParams["figure.dpi"] = 100
     rcParams["legend.fontsize"] = 18
     rcParams["lines.linewidth"] = 2.5
     rcParams["lines.markersize"] = 6
