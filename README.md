@@ -167,9 +167,8 @@ However, note that by default generating figures with the `Visualizations` modul
 include("../Engine/Engine.jl")
 using .Engine
 
+# Remove usage of latex to avoid errors if it is not installed
 import PyPlot as plt
-
-# Remove usage of latex to avoid errors
 rcParams = plt.PyDict(plt.matplotlib."rcParams")
 rcParams["text.usetex"] = false
 rcParams["font.family"] = ["sans-serif"]
