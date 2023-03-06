@@ -1,6 +1,6 @@
 # Describing information influence in social media with coupling inference methods
 
-This repository contains all the code used for our work on influence on Twitter. We develop a new method to measure influence between users on Twitter in the context of disinformation campaigns. We investigate different subjects and events, such as climate change during the COP26 and COP27, and foreign influence after the Skripal poisoning in the UK in 2018. The final report is available [here](Master_Thesis_final.pdf).
+This repository contains all the code used for our work on influence on Twitter. We develop a new method to measure influence between users on Twitter in the context of disinformation campaigns. We investigate different subjects and events, such as climate change during the COP26 and COP27, and foreign influence after the Skripal poisoning in the UK in 2018. The final report is available [here](Thesis_report.pdf).
 
 # Setting up the environment
 
@@ -87,7 +87,7 @@ pipeline = Pipeline(tsg, igg, icg)
 run_experiment(dataset, agents, pipeline, save=true, experiment_name=name)
 ```
 
-Because it would be too long to describe how every part work, the reader is referred to the `Methodology` Section of our [report](Master_Thesis_final.pdf). To get details about the arguments of an object or function, one may look at the docstrings for the corresponding object or function. To check available datasets, you can use `subtypes(Dataset)`. For a list of all possible `partitions`, `actions`, and `actors` choices, it is possible to access the corresponding variables `PreProcessing.partition_options`, `PreProcessing.action_options`, and `PreProcessing.actor_options`. Finally, for a list of the `Generators` methods and arguments, you can look at the docstrings as previously mentioned.  
+Because it would be too long to describe how every part work, the reader is referred to the `Methodology` Section of our [report](Thesis_report.pdf). To get details about the arguments of an object or function, one may look at the docstrings for the corresponding object or function. To check available datasets, you can use `subtypes(Dataset)`. For a list of all possible `partitions`, `actions`, and `actors` choices, it is possible to access the corresponding variables `PreProcessing.partition_options`, `PreProcessing.action_options`, and `PreProcessing.actor_options`. Finally, for a list of the `Generators` methods and arguments, you can look at the docstrings as previously mentioned.  
 
 The results of the experiment will be written into `path/to/repo/Results/name`. It will contain 2 files, `data.jld2` containing the results, and `experiment.yml` summarizing all variables and parameters used to generate the experiment. 
 
